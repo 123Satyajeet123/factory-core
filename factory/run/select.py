@@ -54,7 +54,10 @@ async def target_for(browser: Any, step: Step, *, chooser: Any = None,
         #: for `memory/demote.py` to drop on the refutation that follows, rather than being
         #: deleted here on a guess about why it missed.
 
-    found = await browser.find(step.target, chooser)
+    #: WHAT THE STEP WAS FOR, not what its target is called. A target with no name says
+    #: only "button", and that is not something to choose by.
+    found = await browser.find(step.target, chooser,
+                               wanted=step.intent or step.target.described())
 
     #: THE BOTTOM RUNG. Rung 0 could not resolve it and neither could a model, so a person
     #: is asked -- once, with what the page actually offered. The answer is kept exactly as

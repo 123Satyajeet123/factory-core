@@ -285,3 +285,37 @@ which needs receipts from real runs.
 **Groq's key returns 403** and was not tested. Two of three free models were unusable, which
 is itself the argument for the router: the rung must fall through, and today the caller
 passes a list.
+
+
+## The rung, wired and measured on a live page — 2026-08-30
+
+    try 1   rung=accessible   model asked=1  2 matches
+    try 2   rung=chosen       model asked=2  chose button 'target'
+    after   rung=remembered   model asked=2  one match
+    kept    {'role': 'button', 'name': 'target'}
+    FAULTS 0
+
+**A model answered once and was never asked again.** What it decided is kept as a role and a
+name, so the run after took the ordinary structural path. That is the whole claim of the
+ladder, with a model that costs nothing actually in it.
+
+### Two findings, both about the seam rather than the model
+
+**THE CHOOSER WAS BEING HANDED THE WRONG THING.** `Chooses` took a `Target`, and a target
+with no name describes itself as `"button"`. A model asked which of two buttons is `"button"`
+correctly answers none of them -- it did, twice, and the rung looked broken. What identifies
+a step is what the person was DOING, which lives on the step and not on its target. The
+protocol now takes a description, which is also what its own docstring always said the model
+sees.
+
+That is a machine-level defect and it was invisible with a stub chooser: every eval until
+now supplied one that matched on `among` and never read the first argument at all.
+
+**A FREE MODEL ANSWERS THE SAME QUESTION DIFFERENTLY.** Asked twice about one page it
+refused once and chose correctly once, on an identical prompt. So the property worth testing
+is not "it always chooses" but "once it has, nobody is asked again" -- and refusing is the
+safe direction, because the rung below is a person rather than a guess.
+
+A curated candidate set got 4/4 earlier; a real page's accessibility tree carries StaticText
+and generic nodes alongside the controls, and the answer is less reliable against it. That
+is an argument for pruning what the chooser is shown, and it is not built.

@@ -40,7 +40,7 @@ class Counting:
     def __init__(self, described: str) -> None:
         self.described, self.asked = described, 0
 
-    def __call__(self, _target: Target, among: dict[int, str]) -> int | None:
+    async def __call__(self, _wanted: str, among: dict[int, str]) -> int | None:
         self.asked += 1
         hits = [i for i, line in among.items() if line == self.described]
         return hits[0] if len(hits) == 1 else None

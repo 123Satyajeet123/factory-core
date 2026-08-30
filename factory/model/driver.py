@@ -1,22 +1,3 @@
-"""The MODEL driver: a situation and a schema in, that schema or a typed refusal out.
-
-A REFUSAL IS A VALUE, NOT AN EXCEPTION. `gates/model-vendor.md` D2: a caller branches on
-"it would not answer" without catching anything, and a best-effort object with empty fields
-is worse than either -- that is the shape that makes `locate` press the wrong control.
-
-NO SILENT RETRY. Conformance is measured on the FIRST response, because a library whose
-correctness comes from retrying pays for it in tokens and calls it reliability. Retrying is
-a decision a caller makes with the refusal in hand.
-
-NO CLIENT LIBRARY, AND THAT IS THIS GATE'S OWN RULE. D6 asks whether a second provider costs
-a config line or a code path; a plain OpenAI-compatible POST costs a base url either way.
-The gate's decision rule says a dependency that only smooths an API we call once is not
-adopted, and `response_format: json_schema` is that API. What a client would add here is
-retries we do not want and provider branching we do not have.
-
-FREE IS AN OBSERVATION. Which models cost nothing comes from a provider's own listing --
-`catalogue` asks -- never from a price table, whose failing case is on record.
-"""
 
 from __future__ import annotations
 
@@ -29,14 +10,13 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from factory import settings
+
 
 class Refused(BaseModel):
-    """The model would not, or could not, answer in the shape asked for."""
 
     why: str
     model: str = ""
-    #: What it said instead, when it said anything. A refusal nobody can read is
-    #: indistinguishable from a crash.
     said: str = ""
 
     def __bool__(self) -> bool:
@@ -44,7 +24,6 @@ class Refused(BaseModel):
 
 
 class Answered(BaseModel):
-    """One answer, and what it cost to get."""
 
     value: Any
     model: str
@@ -66,7 +45,6 @@ def _post(url: str, key: str, body: dict[str, Any], seconds: float) -> dict[str,
 async def ask[Wanted: BaseModel](
         situation: str, wanted: type[Wanted], *, models: list[str], key: str,
         base_url: str, seconds: float = 60.0) -> Answered | Refused:
-    """Ask the first model that answers in the shape. No retries within a model."""
     schema = wanted.model_json_schema()
     schema["additionalProperties"] = False
     last = Refused(why="no models were offered")
@@ -91,9 +69,6 @@ async def ask[Wanted: BaseModel](
         try:
             value = wanted.model_validate_json(said)
         except ValidationError as malformed:
-            #: THE ANSWER CAME BACK AND IS NOT THE SHAPE. That is a refusal, not an error:
-            #: the caller wanted a decision and did not get one, and which of the two it
-            #: was does not change what they can do about it.
             last = Refused(why=f"did not conform: {malformed.error_count()} problems",
                            model=model, said=said[:200])
             continue
@@ -102,3 +77,64 @@ async def ask[Wanted: BaseModel](
         return Answered(value=value, model=model, tokens=int(used),
                         seconds=time.perf_counter() - started)
     return last
+
+
+MODELS = [
+    "nvidia/nemotron-3.5-lightning:free",
+    "minimax/minimax-m3:free",
+]
+
+
+def configured() -> tuple[str, str, list[str]] | None:
+    key, where = settings.model_key(), settings.model_base()
+    if not key or not where:
+        return None
+    return key, where, settings.model_names() or MODELS
+
+
+def chooser(models: list[str] | None = None) -> Any:
+    settings_now = configured()
+    if settings_now is None:
+        return None
+    key, where, offered = settings_now
+
+    from factory.model.schemas_resolve import Chosen, situation
+
+    async def choose(wanted: str, among: dict[int, str]) -> int | None:
+        got = await ask(situation(wanted, among), Chosen,
+                        models=models or offered, key=key, base_url=where)
+        return got.value.picked() if got else None
+
+    return choose
+
+
+def _self_check() -> None:
+    import os
+
+    for name in ("OPENROUTER_API_KEY", "FACTORY_MODEL_BASE"):
+        os.environ.pop(name, None)
+    assert configured() is None, "no key and no endpoint is not a configured driver"
+    assert chooser() is None, "absent is a state, never a stub that guesses"
+
+    os.environ["OPENROUTER_API_KEY"] = "not-a-real-key"
+    assert configured() is None, "a key without an endpoint is still not configured"
+    os.environ["FACTORY_MODEL_BASE"] = "http://127.0.0.1:1"
+    key, where, offered = configured()
+    assert (key, where) == ("not-a-real-key", "http://127.0.0.1:1"), "read from settings"
+    assert offered == MODELS, "the shipped list when none is named"
+
+    os.environ["FACTORY_MODELS"] = "one:free,two:free"
+    assert configured()[2] == ["one:free", "two:free"], "named models win"
+
+    refused = asyncio.run(ask("anything", Answered, models=[], key="k", base_url="x"))
+    assert not refused and refused.why, "no models offered is a refusal, not a crash"
+
+    unreachable = asyncio.run(
+        ask("anything", Answered, models=["m"], key="k",
+            base_url="http://127.0.0.1:1", seconds=1.0))
+    assert not unreachable and unreachable.model == "m", "unreachable is a refusal too"
+    print("model: absent without configuration, and a refusal is a value")
+
+
+if __name__ == "__main__":
+    _self_check()

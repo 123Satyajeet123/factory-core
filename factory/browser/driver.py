@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 from typing import Any
 
+from factory.authority import secrets
 from factory.browser import bodies as bodies_mod
 from factory.browser import locate, session
 from factory.browser.guard import press as press_guarded
@@ -195,7 +196,8 @@ class Browser:
         walk(doc["root"])
         return [found[0], *(n for n in found[1:] if n in _inner(doc["root"]))]
 
-    async def find(self, target: Target, chooser: Chooses | None = None) -> locate.Found:
+    async def find(self, target: Target, chooser: Chooses | None = None, *,
+                   wanted: str = "") -> locate.Found:
         """Rung 0, then the chooser, then a question. Descends only on a miss.
 
         The chooser is the model, and it is optional: with none supplied the driver still
@@ -220,7 +222,7 @@ class Browser:
         if found or chooser is None:
             return found
 
-        picked = chooser(target, offered)
+        picked = await chooser(wanted or target.described(), offered)
         if picked is None or not (0 <= picked < len(every)):
             return found
         chosen = locate.reads(every[picked])[2]
@@ -279,7 +281,12 @@ class Browser:
         keydown listener saw zero. Text appearing with no keystrokes behind it is exactly
         what a behavioural detector looks for.
         """
-        for character in text:
+        given, typing = text, secrets.reveal(text)
+        if typing is None:
+            return Did(ok=False, delivery=Delivery.NOT_PROBED, value=given,
+                       detail=f"no secret held for {given}")
+
+        for character in typing:
             #: ONLY ONE OF THESE MAY CARRY THE TEXT. `keyDown` with `text` inserts the
             #: character, and so does `char` -- sending both typed everything twice, and
             #: the destination received 'GGrraaccee'. `keyDown` and `keyUp` are what a
@@ -292,8 +299,8 @@ class Browser:
                                 {"type": "keyUp", "key": character})
             await self.hand.rest_key()
         await self.hand.rest()
-        return Did(ok=True, value=text, exchanges=await self.fetched(),
-                   detail=f"typed {len(text)} characters")
+        return Did(ok=True, value=given, exchanges=await self.fetched(),
+                   detail=f"typed {len(typing)} characters")
 
     async def clear(self) -> None:
         """Select what is in the focused control, so the next thing typed replaces it.
@@ -352,7 +359,7 @@ class Browser:
         """The pause between one row of work and the next. The harness has no hand."""
         await self.hand.next_row()
 
-    async def watch(self, into: list[Any]) -> None:
+    async def watch(self, into: list[Any]) -> Any:
         """Record what a PERSON does here, into `into`.
 
         The driver installs it, because the recorder needs a page and a CDP session and
@@ -361,7 +368,9 @@ class Browser:
         """
         from factory.browser import record
 
-        await record.acts(self._at.context, into)
+        #: The returned callable closes recording: the last act's effect arrives after it,
+        #: and a demonstration that never closes loses the one step worth checking.
+        return await record.acts(self._at.context, into)
 
     async def watched(self) -> Any:
         """What the recorder saw of the pointer and the keyboard, and empties it."""

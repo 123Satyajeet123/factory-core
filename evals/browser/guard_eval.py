@@ -39,7 +39,7 @@ def picks(described: str):
     carries StaticText children -- `button 'target'` and `statictext 'target'` both contain
     the name, and a substring match found two and refused.
     """
-    def chooser(target: Target, among: dict[int, str]) -> int | None:
+    async def chooser(wanted: str, among: dict[int, str]) -> int | None:
         hits = [i for i, line in among.items() if line == described]
         return hits[0] if len(hits) == 1 else None
     return chooser
