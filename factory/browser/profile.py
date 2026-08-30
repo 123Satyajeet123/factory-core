@@ -7,6 +7,7 @@ approach measured to cost signals rather than save them.
 
 from __future__ import annotations
 
+import socket
 import subprocess
 from pathlib import Path
 
@@ -26,12 +27,27 @@ def executable() -> str:
     raise RuntimeError(f"no browser found; looked in {BINARIES}")
 
 
+def taken(port: int) -> bool:
+    """Whether something already listens there.
+
+    A debugging port held by another browser -- a stale one from a sibling project is the
+    ordinary case -- makes `launch` succeed and the attach time out fifteen seconds later
+    with "never opened its debugging port", which blames the wrong thing.
+    """
+    with socket.socket() as probe:
+        return probe.connect_ex(("127.0.0.1", port)) == 0
+
+
 def launch(profile: Path, port: int) -> subprocess.Popen[bytes]:
     """A debuggable browser on a persistent profile, and no automation flags.
 
     The flag list is deliberately short. Every switch here is one a person's own browser
     would also have; nothing announces that this session is driven.
     """
+    if taken(port):
+        raise RuntimeError(
+            f"port {port} already has a listener; another browser is using this debugging "
+            f"port and this one would never be reachable")
     profile.mkdir(parents=True, exist_ok=True)
     return subprocess.Popen(
         [executable(),

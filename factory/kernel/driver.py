@@ -10,11 +10,18 @@ the reason the door in `browser/serve.py` exists rather than a shared import.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from factory.kernel import skills
 from factory.kernel.protocol import Cell
 from factory.kernel.session import KernelError, Session
+from factory.kernel.skills import (
+    NotInstallable,
+)
+from factory.kernel.skills import install as _install
 from factory.kernel.tools import Bridge, Door
 
-__all__ = ["Bridge", "Cell", "Door", "Kernel", "KernelError"]
+__all__ = ["Bridge", "Cell", "Door", "Kernel", "KernelError", "NotInstallable"]
 
 
 class Kernel:
@@ -33,6 +40,12 @@ class Kernel:
         return cls(await Session(Bridge(*doors)).start(timeout=timeout))
 
     @property
+    def alive(self) -> bool:
+        """Whether the runtime is still there. A cell against a dead one comes back
+        `ename="Died"` rather than raising, so this is how a caller decides to restart."""
+        return self._session.alive
+
+    @property
     def python(self) -> str:
         """The runtime's own version, as it announced itself."""
         return self._session.python
@@ -40,6 +53,17 @@ class Kernel:
     async def run(self, code: str, *, timeout: float = 30.0) -> Cell:
         """One cell. Top-level `await` is allowed and a task it starts outlives it."""
         return await self._session.run(code, timeout=timeout)
+
+    async def install(self, root: Path) -> None:
+        """Put a package in this kernel's interpreter and make this process see it.
+
+        The refresh is not optional and not the caller's to remember: without it the name
+        stays unimportable in a kernel that was already running.
+        """
+        _install(root)
+        cell = await self.run(skills.REFRESH, timeout=60)
+        if cell.status != "ok":
+            raise NotInstallable(f"could not refresh the import path: {cell.evalue}")
 
     async def interrupt(self) -> None:
         return await self._session.interrupt()

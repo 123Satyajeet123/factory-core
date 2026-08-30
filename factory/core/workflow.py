@@ -45,6 +45,11 @@ class Step(BaseModel):
     value: str = ""
     param: str = ""
     contract: Contract | None = None
+    #: Present in some demonstrations and not others, so the compiler guarded it: do it if
+    #: the control is there, skip it if it is not. A demonstration contains acts that are
+    #: not the task -- somebody who said "watch this" still answers a message -- and
+    #: treating those as mandatory is how a workflow fails on the first row that is normal.
+    optional: bool = False
 
     def wants(self, row: Mapping[str, str]) -> str:
         """What to write for this row."""

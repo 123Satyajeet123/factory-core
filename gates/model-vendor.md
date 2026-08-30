@@ -122,6 +122,35 @@ That a conforming answer is a correct one. D1 measures shape. Whether the choice
 is `evals/model`'s third question — does the score predict the verdict — and that cannot be
 answered until the WITNESS is producing receipts on real runs.
 
-## Result
+## Result — 2026-08-30, PARTIAL. The half that costs nothing is measured; the rest is blocked.
 
-(filled in by execution — not by reasoning)
+**What is installed, and it is not what the gate assumed:**
+
+    litellm     1.83.0     declared in pyproject
+    instructor  1.16.0     declared in pyproject
+    openai      2.16.0     pulled in, not declared
+    anthropic   NOT INSTALLED
+
+**The provider SDK whose native surface decides this gate is not in the tree.** D1 and D2
+turn on `messages.parse()`, `output_config.format` and `strict: true` — the things that made
+instructor's retry-and-validate loop unnecessary. None of that can be measured here, because
+the package that carries it was never added. Meanwhile `instructor` and `litellm` are
+declared and an `openai` client arrived as a transitive dependency of one of them.
+
+That is the finding, and it is available for free: **the tree is provisioned for the
+conclusion the gate was opened to test.** Adopting on a README and then installing to match
+is how a survey stops being possible.
+
+**Blocked on two things, both the operator's:**
+
+- `anthropic` is not a declared dependency. Adding it is a decision, not a detail.
+- No credential. `ANTHROPIC_API_KEY` is unset and `ant auth status` reports profile
+  "default" not configured.
+
+**What running it will cost.** D1 is a conformance *rate*, so it needs repeated calls per
+candidate per schema — the flat case and the nested one `conform.py` already suspects. That
+is real money on someone's account, and it is not spent without being asked.
+
+**Not adopted, not rejected, and deliberately not guessed.** The blind prediction above
+stands unmeasured. Nothing in `model/` should be written against it until this section
+carries numbers, because a driver built to a prediction is the prediction made permanent.

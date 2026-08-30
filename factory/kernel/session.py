@@ -30,6 +30,11 @@ class KernelError(RuntimeError):
     """Nothing bare crosses this driver's boundary."""
 
 
+#: Put on the queue when the runtime's pipe closes. Not a protocol frame -- the runtime
+#: cannot send one, which is the point.
+GONE = {"event": "__gone__"}
+
+
 class Session:
     """A live runtime. Not reusable once closed."""
 
@@ -72,6 +77,9 @@ class Session:
             except ValueError:
                 continue  # the runtime answers a malformed line itself; ours cannot be one
             loop.call_soon_threadsafe(self._deliver, frame)
+        #: The pipe closed, so the runtime is gone. Anyone waiting for a `done` would
+        #: otherwise wait the full timeout for an answer that can no longer arrive.
+        loop.call_soon_threadsafe(self._frames.put_nowait, GONE)
 
     def _deliver(self, frame: dict[str, Any]) -> None:
         """Every frame passes here, on the loop.
@@ -98,6 +106,8 @@ class Session:
         async with asyncio.timeout(timeout):
             while True:
                 frame = await self._frames.get()
+                if frame is GONE:
+                    raise KernelError("the runtime exited before it announced itself")
                 if wanted(frame):
                     return frame
 
@@ -113,12 +123,21 @@ class Session:
         cell_id = str(next(self._ids))
         cell = Cell(id=cell_id, status=Status.OK)
         started = time.perf_counter()
+        #: A dead runtime is reported the same way as a cell that killed it. One shape for
+        #: a caller to handle; `alive` is how it asks whether to start another.
+        if not self.alive:
+            return cell.model_copy(update={
+                "status": Status.ERROR, "ename": "Died",
+                "evalue": "the runtime is not running", "seconds": 0.0})
         self._send(protocol.execute(cell_id, code))
 
         try:
             await self._collect(cell, timeout)
         except TimeoutError:
-            self._send(protocol.interrupt(cell_id))
+            #: A runtime that died between the send and the timeout cannot be interrupted,
+            #: and trying raises where a caller expects a Cell.
+            with contextlib.suppress(KernelError, OSError):
+                self._send(protocol.interrupt(cell_id))
             try:
                 await self._collect(cell, grace)
             except TimeoutError:
@@ -133,6 +152,10 @@ class Session:
             while True:
                 frame = await self._frames.get()
                 event, at = frame.get("event"), frame.get("id")
+                if frame is GONE:
+                    cell.status, cell.ename = Status.ERROR, "Died"
+                    cell.evalue = "the runtime exited while this cell was running"
+                    return
                 if event == "done" and at == cell.id:
                     cell.status = Status(frame.get("status", "error"))
                     return
@@ -150,6 +173,11 @@ class Session:
                     cell.ename = frame.get("ename", "")
                     cell.evalue = frame.get("evalue", "")
                     cell.traceback = frame.get("traceback", [])
+
+    @property
+    def alive(self) -> bool:
+        """Whether the runtime is still there to be asked."""
+        return self._process is not None and self._process.poll() is None
 
     async def interrupt(self) -> None:
         """Applies to the running request, or parks for the next one."""

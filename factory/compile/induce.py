@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel
+
 from factory.core.ledger import Act, Segment
 from factory.core.verbs import Doing
 from factory.core.workflow import Step, Target, Workflow
@@ -59,6 +61,32 @@ def as_trace(segment: Segment, name: str) -> Any:
             id=f"a{index}", intent=segment.intent or act.doing.value,
             action=ActionKind[kind], text=act.value or None, anchor=_anchor(act)))
     return TheirWorkflow(name=name, steps=steps)
+
+
+class Induced(BaseModel):
+    """What came of aligning some demonstrations: a program, or what stopped one.
+
+    A workflow is emitted only when nothing was left undecided. The compiler refuses on a
+    divergence it cannot explain and asks instead -- and an empty `workflow` with the
+    questions thrown away is indistinguishable from a program that does nothing.
+    """
+
+    workflow: Workflow | None = None
+    questions: tuple[str, ...] = ()
+
+    def __bool__(self) -> bool:
+        return self.workflow is not None
+
+
+def program(segments: list[Segment], name: str) -> Induced:
+    """Demonstrations in, a program or a refusal out."""
+    got = induce(segments)
+    asked = tuple(
+        getattr(getattr(u, "question", None), "prompt", None) or getattr(u, "detail", "")
+        for u in (getattr(got, "uncertainties", None) or []))
+    if asked:
+        return Induced(questions=asked)
+    return Induced(workflow=workflow_of(got, name))
 
 
 def induce(segments: list[Segment]) -> Any:
@@ -115,11 +143,15 @@ def workflow_of(induced: Any, name: str) -> Workflow:
         if doing is None:
             continue
         where = their.anchor.structural if their.anchor else None
+        #: THE GUARD IS THE ANSWER, NOT NOISE. An act seen in one demonstration and not
+        #: another comes back with `on_unmet='skip'`; dropping it made an aside mandatory.
+        guard = getattr(their, "guard", None)
         steps.append(Step(
             doing=doing, intent=their.intent or "",
             target=Target(role=(where.role or "") if where else "",
                           name=(where.name or "") if where else ""),
-            value=their.text or "", param=their.param or ""))
+            value=their.text or "", param=their.param or "",
+            optional=getattr(guard, "on_unmet", None) == "skip"))
     return Workflow(name=name, steps=steps,
                     params=tuple(getattr(induced, "param_specs", {}) or ()))
 

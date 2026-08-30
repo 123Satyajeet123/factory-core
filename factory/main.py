@@ -9,6 +9,9 @@ the only place in the tree allowed to know that both exist.
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
+
 from factory.browser import pace as pace_fitting
 from factory.browser import record
 from factory.browser.driver import Browser
@@ -44,9 +47,96 @@ async def learn_pace(memory: Memory, browser: Browser) -> pace_fitting.Fitted:
     return fitted
 
 
+def _listening(port: int) -> bool:
+    from factory.browser import session
+    try:
+        session.endpoint(port)
+    except OSError:
+        return False
+    return True
+
+
+async def demonstrate(task: str, *, port: int = 9222) -> Path:
+    """Record one demonstration of a task, in the browser the factory drives.
+
+    THE PERSON DRIVES AND NOTHING HERE ACTS. The recorder listens; every act reported is
+    one they performed. That is what makes the segment admissible for induction and for
+    fitting a pace, both of which forbid the factory learning from its own driving.
+    """
+    from factory.browser import profile, record, session
+    from factory.browser.driver import Browser
+    from factory.core.ledger import Act, Segment, Whose
+    from factory.store import ledger
+
+    started = None if _listening(port) else profile.launch(
+        Path.home() / ".factory" / "profile", port)
+    for _ in range(80):
+        try:
+            url = session.endpoint(port)
+            break
+        except OSError:
+            await asyncio.sleep(0.25)
+    else:
+        raise RuntimeError(f"nothing answering on {port}")
+
+    browser = await Browser.attach(url)
+    seen: list[Act] = []
+    await record.acts(browser._at.page, browser.cdp, seen)
+
+    print(f"recording {task!r} -- do the task in the browser, then press Enter here.")
+    await asyncio.to_thread(input)
+
+    kept = ledger.keep(Segment(whose=Whose.PERSON, intent=task, acts=list(seen)), task)
+    print(f"kept {len(seen)} acts -> {kept}")
+    if started is not None:
+        print("the browser stays open; close it when you are done.")
+    return kept
+
+
+def compile_task(task: str) -> None:
+    """Induce a program from every demonstration of a task, or say what stopped one."""
+    from factory.compile.induce import program
+    from factory.store import ledger
+
+    shown = ledger.shown(task)
+    print(f"{len(shown)} demonstration(s) of {task!r}")
+    if len(shown) < 2:
+        print("two are needed to tell what varies from what is fixed; one is the "
+              "degenerate case.")
+    got = program(shown, task)
+    if not got:
+        for question in got.questions:
+            print(f"  refused: {question}")
+        return
+    print(f"  params {got.workflow.params}")
+    for step in got.workflow.steps:
+        where = step.target.described() if step.target else ""
+        print(f"  {'?' if step.optional else ' '}{step.doing.value:6} {where:34} "
+              f"param={step.param!r}")
+
+
 def main() -> int:
-    """`factory` on the command line. Nothing is wired to it yet."""
-    print("factory: drivers exist, no workflow runs yet. See gates/ for what is settled.")
+    """`factory` on the command line. Only what actually does something is offered."""
+    import sys
+
+    args = sys.argv[1:]
+    if args[:1] == ["vendors"]:
+        from factory import vendors
+        return vendors.sync()
+
+    if args[:1] == ["demonstrate"] and args[1:]:
+        asyncio.run(demonstrate(" ".join(args[1:])))
+        return 0
+
+    if args[:1] == ["compile"] and args[1:]:
+        compile_task(" ".join(args[1:]))
+        return 0
+
+    from factory.store import ledger
+    print("factory demonstrate <task>   record one demonstration, in your own browser")
+    print("factory compile <task>       induce a program from the demonstrations of it")
+    print("factory vendors sync         check the manifest against the tree")
+    print(f"\ndemonstrated so far: {', '.join(ledger.tasks()) or 'nothing yet'}")
     return 0
 
 

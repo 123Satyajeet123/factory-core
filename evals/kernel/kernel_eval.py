@@ -86,6 +86,18 @@ async def run() -> int:
         wedged += not alive
         check("K5 and recoverable", alive, f"next cell -> {after.result}")
 
+        # K7 -- a runtime that dies is reported at once, not after a timeout, and not by
+        # raising where every other failure returns a Cell.
+        died = await kernel.run("import os; os._exit(1)", timeout=30)
+        prompt = died.seconds < 5.0
+        check("K7 a dead runtime is reported at once", died.ename == "Died" and prompt,
+              f"{died.ename!r} after {died.seconds:.1f}s")
+        after = await kernel.run("1 + 1", timeout=5)
+        check("K7 and the next cell says so too", after.ename == "Died", after.evalue)
+        check("K7 alive reports it", not kernel.alive, f"alive={kernel.alive}")
+
+    # K6 needs a live runtime, so it gets its own.
+    async with await Kernel.start() as kernel:
         # K6 -- what a round trip costs.
         warm = [await kernel.run("None") for _ in range(5)]
         each = sorted(c.seconds for c in warm)[len(warm) // 2] * 1000

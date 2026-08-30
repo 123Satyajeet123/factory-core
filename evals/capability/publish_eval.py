@@ -18,9 +18,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from factory.capability.offer import NotInstallable, install, offer
+from factory.capability.offer import offer
 from factory.capability.publish import Capability, complete, importable, write
 from factory.kernel.driver import Kernel
+from factory.kernel.skills import NotInstallable
 
 #: A procedure of the shape `draft.py` will produce: parameters by diff, no model asked.
 BODY = '''
@@ -58,16 +59,17 @@ async def run() -> int:
         # P3 -- the negative case, which is the one the vendor degrades silently.
         broken = write(home, Capability(name="half-written", description="x", body=BODY))
         (broken / "pyproject.toml").unlink()
-        accepted = True
-        try:
-            install(broken)
-        except NotInstallable:
-            accepted = False
-        silent += accepted
-        check("P3 an incomplete layout is refused", not accepted,
-              "NotInstallable" if not accepted else "ACCEPTED IT")
 
         async with await Kernel.start() as kernel:
+            accepted = True
+            try:
+                await offer(kernel, broken)
+            except NotInstallable:
+                accepted = False
+            silent += accepted
+            check("P3 an incomplete layout is refused", not accepted,
+                  "NotInstallable" if not accepted else "ACCEPTED IT")
+
             await kernel.run("rows = [{'status': 'held'}, {'status': 'ok'}, {'status': 'held'}]")
             answer = await offer(kernel, root, "rows, 'held'")
             works = answer == "2"

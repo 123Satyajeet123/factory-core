@@ -42,8 +42,11 @@ name    = "openadapt-flow"
 tier    = 1
 use     = "import"
 url     = "https://github.com/OpenAdaptAI/openadapt-flow.git"
-rev     = "faf2bd16125e1dac7559d5a3c3f190b6edd8267a"
-path    = "candidates/openadapt-flow"
+# A DISTRIBUTION, NOT A CLONE. Declared here for its tier and its `use`, which uv.lock does
+# not carry; pinned by the version that is installed, which is what actually runs. The
+# commit that stood here described nothing in this tree -- `factory vendors sync` said so.
+rev     = "1.34.0"
+path    = ""
 license = "MIT"
 imports = "openadapt_flow"
 why     = "induce_program and effect mining. Tier 1, not 3: three modules imported, none patched"

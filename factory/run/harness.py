@@ -61,6 +61,11 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
 
         done = RowRun(row=dict(row))
         for step in workflow.steps:
+            #: A guarded step runs when its control is there and is skipped when it is not.
+            #: Failing the row on an absent optional control would fail every row that is
+            #: normal, which is the majority of them.
+            if step.optional and step.target is not None and not await browser.find(step.target):
+                continue
             did = await one_step(browser, step, row)
             receipt = None
             if step.contract is not None and witness is not None:

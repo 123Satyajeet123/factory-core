@@ -93,7 +93,8 @@ on it.
 ## Running
 
     uv sync
-    uv run factory vendors sync
+    npm ci                         # ghost-cursor, and BotD for the detectability gate
+    uv run factory vendors sync    # every pin, against what is actually on disk
     uv run ruff check .
     uv run pytest                  # read the exit code, never a piped tail
 
