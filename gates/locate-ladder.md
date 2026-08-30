@@ -68,3 +68,50 @@ has not solved anything; it has moved the problem into our source.
 ## Result
 
 (filled in by execution — not by reasoning)
+
+## Amendment — 2026-08-30, before any code, and the original above is left standing
+
+**The candidate list was wrong, and wrong in a way worth keeping visible.** Candidates 1, 2
+and 3 — the vendor's unfiltered tree, the platform's AX tree, Playwright's engine — are the
+same candidate three times: *another structural channel*. Ordering them is a hardcoded
+sequence of addressing strategies, and that list never closes. A canvas cell, a drag
+handle, a chart region, a virtualised row that does not exist until something scrolls: each
+would want a fourth entry, then a fifth.
+
+**What identifies a target is the evidence from the demonstration, not a strategy.** The
+person's act was recorded, along with what the page did afterwards. Locate's job is to find
+the thing that matches that evidence now. There are not N strategies; there is one job with
+a widening set of candidate sources.
+
+So the rungs are:
+
+    0  structural match against the recorded evidence          free
+    1  the MODEL chooses among candidates, given what was
+       recorded and what the page offers now                   a model call
+    2  pixels, when the page offers no structure at all        a vision call
+    3  ask, once, and the answer is stored on the workflow     a person
+
+Rung 1 is not "try another selector". It is the model deciding which of the things on this
+page is the thing that was demonstrated — the one part of this that is not plumbing.
+
+**Two consequences that were not in the original.**
+
+*The witness does not need the control.* On a canvas grid a cell may never be addressable,
+and the effect of acting on it is still confirmable on a channel that did not act. An
+unaddressable control is not an unverifiable act, which is why locate and witness are
+separate machines rather than one perception layer.
+
+*Resolution is memory, and this is where the cost goes back down.* Rung 1 costs a model
+call the first time. Once it resolves and a witness confirms, the resolution is stored
+against that step and rung 0 answers on every later run. The promotion is earned by a
+receipt, never by the model's own confidence.
+
+**L1 is amended accordingly.** Coverage is still reported per rung, but "does rung 2 find
+the checkbox" is no longer the question — rung 2 is now pixels. The question for the
+structural rung is whether the evidence recorded at demonstration time is enough to find
+the control again, and where it is not, whether the descent happens rather than the driver
+stopping.
+
+**The blind prediction stands and is now testable in a different place**: the input is in
+the DOM with a label association, so what dropped it is the vendor's interactive filter and
+not the platform. That is a question about the candidate SET, which rung 0 and rung 1 share.
