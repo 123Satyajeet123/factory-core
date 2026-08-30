@@ -1,7 +1,28 @@
 # factory
 
-Watches a browser workflow demonstrated once, then does it — cheaply, and with proof
-that it happened. Not a recorded macro, and not a model re-reasoning every step.
+Watches a browser workflow demonstrated once, then does it — and manufactures its own
+tools while doing it.
+
+Four claims, in the order they have to hold:
+
+1. **It compiles.** A demonstration becomes a reviewable program that runs with no model.
+2. **It proves.** Every effect is checked on a channel that did not cause it. Three-valued:
+   confirmed, refuted, unverifiable — never a boolean that cannot be false.
+3. **It manufactures.** Capabilities come from what actually happened, never from a
+   model's idea of it. SkillsBench measured curated skills at +16.2pp and self-generated
+   skills at ≈0; a model cannot reliably author the procedural knowledge it benefits from
+   consuming. The procedure is read out of the record, and the only thing a model is asked
+   for is a name.
+4. **It keeps only what paid for itself.** Authoring is counted, not just execution.
+   EvoClawBench measured skill workflows at 0.38 end-to-end token efficiency, and found
+   empty scaffolds beating real skills — the gain was a context reset, not knowledge.
+   A capability that never recovers its authoring cost is demoted.
+
+And when it cannot proceed it asks, once, and the answer becomes part of the workflow.
+
+Cost is the second number, not the first. A workflow that needs a model every run is fine
+if it works and can be shown to have worked; cheapness bought by checking less is not
+improvement.
 
 ## Machines
 
