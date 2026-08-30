@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 
 from factory.browser import profile, session
-from factory.browser.machine import Machine
+from factory.browser.driver import Browser
 
 HERE = Path(__file__).parent / "fixtures"
 PORT, CDP_PORT = 8099, 9334
@@ -50,17 +50,17 @@ async def run() -> int:
         else:
             raise RuntimeError("browser never opened its debugging port")
 
-        machine = await Machine.attach(url)
+        driver = await Browser.attach(url)
         print(f"{'surface':10} {'accessible: nodes / named':28} {'wire: bodies kept':20}")
         print("-" * 62)
         for surface in ("dom", "wire", "painted"):
-            machine.bodies.exchanges.clear()
-            await machine.go(f"http://127.0.0.1:{PORT}/{surface}.html")
+            driver.bodies.exchanges.clear()
+            await driver.go(f"http://127.0.0.1:{PORT}/{surface}.html")
             await asyncio.sleep(0.8)
 
-            nodes = await machine.candidates()
+            nodes = await driver.candidates()
             named = [n for n in nodes if (n.get("name") or {}).get("value")]
-            kept = await machine.fetched()
+            kept = await driver.fetched()
             with_body = [e for e in kept if e.body]
 
             print(f"{surface:10} {f'{len(nodes)} / {len(named)}':28} "
@@ -69,7 +69,7 @@ async def run() -> int:
                 print(f"{'':10} kept {exchange.status} {exchange.content_type:18} "
                       f"{exchange.size:>6}B  {(exchange.body or '')[:52]!r}")
 
-        await machine.close()
+        await driver.close()
     finally:
         browser.terminate()
         httpd.shutdown()

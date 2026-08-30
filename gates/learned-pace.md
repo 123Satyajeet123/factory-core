@@ -55,7 +55,7 @@ requires a new mechanism inside `Hand`, the fit is doing too much.
                         else: it is evidence, and a fit from twelve samples should not
                         outrank one from twelve hundred.
     browser/hand.py     takes the Pace it is given. Unchanged.
-    browser/machine.py  the driver holds the Hand. Unchanged.
+    browser/driver.py   the driver holds the Hand. Unchanged.
 
 So the driver is where it lands, and nothing above the driver learns that any of this
 happened.

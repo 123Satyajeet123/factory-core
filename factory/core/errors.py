@@ -1,1 +1,1 @@
-"""Nothing bare crosses a machine boundary."""
+"""Nothing bare crosses a driver boundary."""

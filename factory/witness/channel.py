@@ -34,11 +34,11 @@ class Channel(StrEnum):
 QUALITY: tuple[Channel, ...] = (Channel.DESTINATION, Channel.WIRE)
 
 
-def witnesses(channel: Channel) -> bool:
+def can_witness(channel: Channel) -> bool:
     """Whether a channel may witness an act at all."""
     return channel in QUALITY
 
 
-def quality(channel: Channel) -> int:
+def evidence_rank(channel: Channel) -> int:
     """Rank, best first. Only meaningful for a channel that witnesses."""
     return QUALITY.index(channel)

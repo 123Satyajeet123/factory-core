@@ -1,1 +1,1 @@
-"""Types and protocols. Imports no machine."""
+"""Types and protocols. Imports no driver."""

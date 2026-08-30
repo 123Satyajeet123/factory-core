@@ -48,7 +48,7 @@ argument later fails the suite.
 the server, which would then have to attach its own client -- two sessions on one browser,
 with the kept response bodies split across them. `rlm.mcp` supports `type: "http"` with a
 `url` as well as stdio, so the door runs in the factory's own process over loopback with
-one Machine, one session, one evidence channel.
+one Browser, one session, one evidence channel.
 
 **Not yet done:** the door is loopback-only and unauthenticated. A capability token is the
 next thing it needs, and nothing else on this machine currently listens.

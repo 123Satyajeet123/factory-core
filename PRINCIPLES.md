@@ -14,14 +14,14 @@ preference, and is marked as one.
 *AOSP: Project Treble. System and vendor are separately updatable because they meet at a
 versioned interface, and vendor code never reaches into platform internals.*
 
-A machine's `machine.py` is the whole of its surface. Nothing above a machine may name a
+A driver's `driver.py` is the whole of its surface. Nothing above a driver may name a
 vendor type, hold a vendor object, or know a vendor's protocol. A vendor's shape leaking
 upward is the defect — not merely untidy, it is what makes "replaceable" false.
 
-**Enforced by:** an import rule in CI. `core/` imports no machine; nothing outside
-`browser/` imports `browser_use`; nothing outside `kernel/` imports `rlm`.
-**Status: not enforced.** `locate.visible` returns the vendor's node objects and callers
-read `.ax_node`, so the vendor's serialisation is already above the line.
+**Enforced by:** an import rule in CI. `core/` imports no driver; nothing outside
+`browser/` imports `playwright`; nothing outside `kernel/` imports `rlm`.
+**Status: held, but not checked.** `locate` returns plain dicts rather than a vendor's
+node objects, so nothing leaks upward today — and nothing would notice if it started.
 
 ## 2. A driver is a process with an interface, and there is one way to build one
 
@@ -45,14 +45,14 @@ measurement, with each vendor supplying only its command and its schema.
 *AOSP: CTS and VTS. An implementation is not a HAL implementation because it claims to be;
 it is one because it passes the suite.*
 
-`evals/<machine>/` is the specification. A candidate is adopted when it passes that suite,
-replaced when something else passes it better, and a machine with no suite has no
-interface no matter how clean its `machine.py` reads.
+`evals/<driver>/` is the specification. A candidate is adopted when it passes that suite,
+replaced when something else passes it better, and a driver with no suite has no
+interface no matter how clean its `driver.py` reads.
 
 This is what makes principle 1 worth anything: six independent suites are the only reason
 "replaceable" is a claim rather than a hope.
 
-**Enforced by:** no machine is wired into `main.py` before its suite runs green.
+**Enforced by:** no driver is wired into `main.py` before its suite runs green.
 
 ## 4. Every claim has a call site
 
@@ -117,8 +117,10 @@ binaries, models, and anything spawned rather than imported. A dependency reache
 `spawn`, `format` or `read` is a dependency; the `use` field exists because an import is not
 the only way to depend on a project.
 
-**Status: broken today.** `vendors.toml` claims to be that place; ghost-cursor and BotD
-appear only in `package.json`, at a caret range, with the lockfile untracked.
+**Status: held for declaration, broken for hygiene.** `vendors.toml` now carries
+ghost-cursor and BotD with `use = "spawn"` and `"read"`, and `package-lock.json` is
+tracked so `npm ci` is reproducible. `node_modules/` is still 39 files in git history;
+`.gitignore` covers it now, so it needs one `git rm -r --cached`.
 
 ## 9. Adopting a vendor adopts everything it does on construction
 
@@ -174,18 +176,18 @@ on one machine and not another is a bug in the manifest, not in the machine.
 
 | principle | mechanism | today |
 |---|---|---|
-| 1 vendor boundary | import rule in CI | **absent** |
+| 1 vendor boundary | import rule in CI | holds, unchecked |
 | 2 one sidecar pattern | `sidecar` module | **absent**, three ad-hoc wires |
-| 3 suite is the interface | `evals/<machine>/` | one of six suites exists |
-| 4 every claim has a call site | check per gate criterion | **absent** for vendor criteria |
-| 5 guards both directions | SAFETY + LIVENESS reported | one guard of five |
+| 3 suite is the interface | `evals/<driver>/` | two of six suites exist |
+| 4 every claim has a call site | `evals/mutation.py` | harness exists, witness only |
+| 5 guards both directions | SAFETY + LIVENESS reported | two of five |
 | 6 vendor first, measured | gate before code | **holding** |
 | 7 evaluation vendored too | pinned in the manifest | **absent** |
-| 8 one manifest | `vendors.toml` covers all | **broken**, npm outside |
+| 8 one manifest | `vendors.toml` covers all | holds; node_modules still tracked |
 | 9 vendor acts on construction | audit + runtime assert | **absent** |
 | 10 language by implementation | wire cost measured once | unmeasured |
 | 11 smallest thing | gate records what was rejected | **holding** |
 | 12 scheduled removal | `orchestrate/maintain.py` | **stub** |
-| 13 one hermetic build | committed lockfiles | npm lockfile untracked |
+| 13 one hermetic build | committed lockfiles | lockfiles in; README omits `npm ci` |
 
 A principle marked absent is not a plan. It is a claim this project currently cannot make.

@@ -1,6 +1,6 @@
-"""Every machine protocol, in one file.
+"""Every driver protocol, in one file.
 
-A machine that cannot be supplied is None, never a stub that raises and never a hard-wired
+A driver that cannot be supplied is None, never a stub that raises and never a hard-wired
 concrete class. The composition root decides which are present.
 """
 
@@ -23,6 +23,6 @@ class Chooses(Protocol):
 
 
 class Asks(Protocol):
-    """Where a question goes when no machine can answer it."""
+    """Where a question goes when no driver can answer it."""
 
     def __call__(self, question: Question) -> str | None: ...

@@ -3,7 +3,7 @@
     uv run python -m evals.browser.door_eval
 
 The door is what a KERNEL cell -- model-written code in another interpreter -- uses to act.
-If a caller can get an unguarded press through it, every guarantee the BROWSER machine
+If a caller can get an unguarded press through it, every guarantee the BROWSER driver
 makes is optional, and optional guarantees are not guarantees.
 
 Also answers the open item in gates/kernel-browser-wire.md: what one act costs over the
@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from factory.browser import profile, serve, session
-from factory.browser.machine import Machine
+from factory.browser.driver import Browser
 
 HERE = Path(__file__).parent / "fixtures"
 SITE, CDP_PORT, DOOR = 8090, 9346, 8765
@@ -58,9 +58,9 @@ async def run() -> int:
         else:
             raise RuntimeError("browser never opened its debugging port")
 
-        machine = await Machine.attach(url, seed=5)
-        await machine.go(FIXTURE)
-        door = asyncio.create_task(serve.serve(machine, DOOR))
+        driver = await Browser.attach(url, seed=5)
+        await driver.go(FIXTURE)
+        door = asyncio.create_task(serve.serve(driver, DOOR))
         await asyncio.sleep(2.0)
 
         async with (streamablehttp_client(f"http://127.0.0.1:{DOOR}/mcp") as (r, w, _),
@@ -102,7 +102,7 @@ async def run() -> int:
                     await call("candidates")
                     over.append(time.perf_counter() - started)
                     started = time.perf_counter()
-                    await machine.candidates()
+                    await driver.candidates()
                     direct.append(time.perf_counter() - started)
                 wire = statistics.median(over) - statistics.median(direct)
                 print(f"same read: door {statistics.median(over) * 1000:.0f} ms, "
@@ -124,7 +124,7 @@ async def run() -> int:
 
                 #: The world changes under the caller. The door must refuse exactly as the
                 #: driver does -- this is the whole reason the door exists.
-                await machine.evaluate("document.getElementById('veil').style.display='block'")
+                await driver.evaluate("document.getElementById('veil').style.display='block'")
                 covered = await call("click", role="button", name="target")
                 print(f"covered target     ok={covered['ok']} "
                       f"delivery={covered['delivery']} detail={covered['detail']}")
@@ -135,7 +135,7 @@ async def run() -> int:
 
 
         door.cancel()
-        await machine.close()
+        await driver.close()
     finally:
         browser.terminate()
         httpd.shutdown()

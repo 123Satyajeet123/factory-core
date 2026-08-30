@@ -117,7 +117,7 @@ class Memory:
 def _self_check() -> None:
     """Inheritance, earned elevation, demotion. No browser and no store on disk.
 
-        uv run python -m factory.memory.machine
+        uv run python -m factory.memory.driver
     """
     memory = Memory()
 

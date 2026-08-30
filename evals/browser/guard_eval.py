@@ -1,4 +1,4 @@
-"""The guard's fixtures and the shape of the input, driven through the machine.
+"""The guard's fixtures and the shape of the input, driven through the driver.
 
     uv run python -m evals.browser.guard_eval
 
@@ -23,7 +23,7 @@ import threading
 from pathlib import Path
 
 from factory.browser import profile, session
-from factory.browser.machine import Machine
+from factory.browser.driver import Browser
 from factory.core.evidence import Delivery
 from factory.core.workflow import Target
 
@@ -103,26 +103,26 @@ async def run() -> int:
         else:
             raise RuntimeError("browser never opened its debugging port")
 
-        machine = await Machine.attach(url, seed=17)
+        driver = await Browser.attach(url, seed=17)
         landed_on: list[tuple[float, float]] = []
 
         questions = 0
         for name, target, chooser, change, expected, should_dispatch, want_rung in CASES:
-            await machine.go(FIXTURE)
+            await driver.go(FIXTURE)
             #: Navigating to the same URL does not reliably give a fresh JS context, and a
             #: counter carried between cases reports travel that belonged to the last one.
-            await machine.evaluate("window.__clicks=[];window.__moves=[];0")
+            await driver.evaluate("window.__clicks=[];window.__moves=[];0")
 
-            found = await machine.find(target, chooser)
+            found = await driver.find(target, chooser)
             if found.question:
                 questions += 1
             if change:
-                await machine.evaluate(change)
+                await driver.evaluate(change)
 
-            did = await machine.press(found)
-            clicks = json.loads(await machine.evaluate("JSON.stringify(window.__clicks)"))
-            moves = int(await machine.evaluate("window.__moves.length") or 0)
-            where = await machine.evaluate(
+            did = await driver.press(found)
+            clicks = json.loads(await driver.evaluate("JSON.stringify(window.__clicks)"))
+            moves = int(await driver.evaluate("window.__moves.length") or 0)
+            where = await driver.evaluate(
                 "JSON.stringify(window.__moves.slice(-1)[0] || [])")
 
             delivered_ok = expected is None or did.delivery == expected
@@ -144,16 +144,16 @@ async def run() -> int:
             del want_rung
 
         # M3 end to end: press the same control repeatedly and see where it lands.
-        await machine.go(FIXTURE)
+        await driver.go(FIXTURE)
         await asyncio.sleep(0.5)
         for _ in range(4):
-            await machine.click(Target(role="button", name="target"))
-        spots = json.loads(await machine.evaluate(
+            await driver.click(Target(role="button", name="target"))
+        spots = json.loads(await driver.evaluate(
             "JSON.stringify(window.__moves.slice(-1)[0] || [])"))
         del spots
-        aims = {machine.hand.aim() for _ in range(20)}
+        aims = {driver.hand.aim() for _ in range(20)}
 
-        await machine.close()
+        await driver.close()
     finally:
         browser.terminate()
         httpd.shutdown()

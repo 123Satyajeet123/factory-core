@@ -1,4 +1,4 @@
-"""A rung that cannot see a bound field refuses.
+"""A reader that cannot see an expected field refuses.
 
 "Looked and it was not there" and "cannot look at this kind of thing at all" are the same
 absence in the bytes and opposite answers. The first refutes. The second is blindness, and
@@ -8,9 +8,9 @@ almost everything.
 
 from __future__ import annotations
 
-from factory.core.contract import Contract, Found
+from factory.core.contract import Contract, Reading
 
 
-def unseen(contract: Contract, found: Found) -> frozenset[str]:
-    """Bound fields this reader could not address at all."""
-    return frozenset(contract.binds) - found.saw
+def unreadable(contract: Contract, reading: Reading) -> frozenset[str]:
+    """Expected fields this reader could not address at all."""
+    return frozenset(contract.expects) - reading.readable

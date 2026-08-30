@@ -1,8 +1,8 @@
-"""Does any machine know a destination?
+"""Does any driver know a destination?
 
     uv run python -m evals.agnostic
 
-The factory is supposed to build the things a workflow needs. Machinery that names a site,
+The factory is supposed to build the things a workflow needs. A driver that names a site,
 a selector or a procedure has quietly done that job by hand, and it will keep working on
 the one destination somebody had in mind while silently being useless on the next.
 
@@ -16,9 +16,9 @@ import re
 import sys
 from pathlib import Path
 
-MACHINES = Path(__file__).resolve().parents[1] / "factory"
+DRIVERS = Path(__file__).resolve().parents[1] / "factory"
 
-#: A hostname that is not this machine. Loopback is how a fixture is served.
+#: A hostname that is not this host. Loopback is how a fixture is served.
 HOST = re.compile(r"\bhttps?://(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.[a-z]{2,}", re.I)
 #: A CSS or XPath selector rooted at an id or class -- per-destination knowledge in code.
 #: The whole string must be the selector. An earlier version matched a quote followed by a
@@ -46,12 +46,12 @@ def offences(text: str, path: Path) -> list[tuple[int, str, str]]:
 
 def main() -> int:
     bad = 0
-    for path in sorted(MACHINES.rglob("*.py")):
+    for path in sorted(DRIVERS.rglob("*.py")):
         for number, what, line in offences(path.read_text(encoding="utf-8"), path):
             bad += 1
-            print(f"{path.relative_to(MACHINES.parent)}:{number}  {what:9} {line}")
-    scanned = sum(1 for _ in MACHINES.rglob("*.py"))
-    print(f"\n{scanned} machine files scanned, {bad} that know a destination (must be 0)")
+            print(f"{path.relative_to(DRIVERS.parent)}:{number}  {what:9} {line}")
+    scanned = sum(1 for _ in DRIVERS.rglob("*.py"))
+    print(f"\n{scanned} driver files scanned, {bad} that know a destination (must be 0)")
     return 1 if bad else 0
 
 

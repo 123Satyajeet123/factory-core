@@ -1,6 +1,6 @@
 """The socket. A reader is discovered, never imported by name.
 
-Adding a surface must not edit this package. `installed()` reads the entry point group, and
+Adding a surface must not edit this package. `discover()` reads the entry point group, and
 `Ladder` takes its readers as an argument -- so an eval, or the thing that manufactures
 readers, supplies its own without a back door being cut here for it.
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 from importlib.metadata import entry_points
 from typing import Protocol, runtime_checkable
 
-from factory.core.contract import Contract, Found
+from factory.core.contract import Contract, Reading
 from factory.core.evidence import Did
 from factory.witness.channel import Channel
 
@@ -32,10 +32,10 @@ class Reader(Protocol):
     name: str
     channel: Channel
 
-    def read(self, did: Did, contract: Contract) -> Found: ...
+    def read(self, did: Did, contract: Contract) -> Reading: ...
 
 
-def installed() -> tuple[Reader, ...]:
+def discover() -> tuple[Reader, ...]:
     """Every reader registered at the entry point group.
 
     A reader that cannot be loaded raises here rather than being skipped: one silently

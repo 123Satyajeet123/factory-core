@@ -1,9 +1,9 @@
-"""The composition root. The only module that knows every machine.
+"""The composition root. The only module that knows every driver.
 
-Machines are built lazily and only if they can be: no key, no MODEL; no browser, no
+Drivers are built lazily and only if they can be: no key, no MODEL; no browser, no
 BROWSER. Absent is a state, never a subclass that raises when used.
 
-Nothing here decides anything. It hands each machine what the others produced, which is
+Nothing here decides anything. It hands each driver what the others produced, which is
 the only place in the tree allowed to know that both exist.
 """
 
@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from factory.browser import pace as pace_fitting
 from factory.browser import record
+from factory.browser.driver import Browser
 from factory.browser.hand import Pace
-from factory.browser.machine import Machine
 from factory.core.memory import Kind, Tier
-from factory.memory.machine import Memory
+from factory.memory.driver import Memory
 
 #: How a person drives a browser is a property of them and their machine, not of any task,
 #: so the fit lives at MAIN under one key and every workflow uses it.
@@ -27,18 +27,18 @@ def remembered_pace(memory: Memory) -> Pace | None:
     return Pace(**entry.value) if entry else None
 
 
-async def driver(memory: Memory, cdp_url: str, *, seed: int | None = None) -> Machine:
-    """A BROWSER machine paced by whatever has been learned about this person."""
-    return await Machine.attach(cdp_url, seed=seed, pace=remembered_pace(memory))
+async def driver(memory: Memory, cdp_url: str, *, seed: int | None = None) -> Browser:
+    """A BROWSER driver paced by whatever has been learned about this person."""
+    return await Browser.attach(cdp_url, seed=seed, pace=remembered_pace(memory))
 
 
-async def learn_pace(memory: Memory, machine: Machine) -> pace_fitting.Fitted:
+async def learn_pace(memory: Memory, browser: Browser) -> pace_fitting.Fitted:
     """Fit what the recorder saw a PERSON do, and keep it.
 
     Only ever called on a demonstration. Fitting to the factory's own driving would have
     the distribution converge on whatever we already do -- see gates/learned-pace.md.
     """
-    fitted = pace_fitting.fit(await record.drain(machine._at.page),
+    fitted = pace_fitting.fit(await record.drain(browser._at.page),
                               over=remembered_pace(memory))
     memory.remember(Kind.PACE, OPERATOR, fitted.pace.model_dump(), tier=Tier.MAIN)
     return fitted
@@ -46,7 +46,7 @@ async def learn_pace(memory: Memory, machine: Machine) -> pace_fitting.Fitted:
 
 def main() -> int:
     """`factory` on the command line. Nothing is wired to it yet."""
-    print("factory: machines exist, no workflow runs yet. See gates/ for what is settled.")
+    print("factory: drivers exist, no workflow runs yet. See gates/ for what is settled.")
     return 0
 
 

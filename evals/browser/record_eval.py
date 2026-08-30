@@ -21,7 +21,7 @@ from pathlib import Path
 
 from factory.browser import pace as pace_mod
 from factory.browser import profile, record, session
-from factory.browser.machine import Machine
+from factory.browser.driver import Browser
 from factory.core.workflow import Target
 
 HERE = Path(__file__).parent / "fixtures"
@@ -49,15 +49,15 @@ async def run() -> int:
         else:
             raise RuntimeError("browser never opened its debugging port")
 
-        machine = await Machine.attach(url, seed=3)
-        await machine.go(f"http://127.0.0.1:{PORT}/guard.html")
-        await record.watch(machine._at.page)
+        driver = await Browser.attach(url, seed=3)
+        await driver.go(f"http://127.0.0.1:{PORT}/guard.html")
+        await record.watch(driver._at.page)
 
         for _ in range(6):
-            await machine.click(Target(role="button", name="target"))
-        await machine.type("abcdefghij")
+            await driver.click(Target(role="button", name="target"))
+        await driver.type("abcdefghij")
 
-        watched = await record.drain(machine._at.page)
+        watched = await record.drain(driver._at.page)
         print(f"recorder saw   moves={len(watched.moves)}  keys={len(watched.keys)}  "
               f"presses={len(watched.presses)}  releases={len(watched.releases)}")
 
@@ -70,7 +70,7 @@ async def run() -> int:
         print(f"keystroke      default {pace_mod.Pace().keystroke} "
               f"-> fitted {tuple(round(v, 3) for v in fitted.pace.keystroke)}")
 
-        await machine.close()
+        await driver.close()
     finally:
         browser.terminate()
         httpd.shutdown()

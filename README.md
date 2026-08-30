@@ -22,14 +22,14 @@ And when it cannot proceed it asks, once, and the answer becomes part of the wor
 
 ## What self-evolving means here, and what it does not
 
-The machines do not rewrite themselves. The Darwin Gödel Machine does that — an agent
+The drivers do not rewrite themselves. The Darwin Gödel Machine does that — an agent
 editing its own codebase, 20.0% to 50.0% on SWE-bench — and its own stated limits are the
 reason this is scoped differently: it is bounded by a frozen model, its generalisation is
 mostly in-domain, and it **assumes the benchmark is a faithful proxy for the ability**.
 That assumption is the whole risk, and it is exactly where this system puts a witness
 instead.
 
-So: the capability library evolves, the machines do not. What accumulates is procedures
+So: the capability library evolves, the drivers do not. What accumulates is procedures
 read out of recorded evidence, verified on a channel that did not produce them, and kept
 only while they pay for themselves. That is a narrower claim than self-modifying software
 and it is the one that can actually be checked.
@@ -38,7 +38,7 @@ Cost is the second number, not the first. A workflow that needs a model every ru
 if it works and can be shown to have worked; cheapness bought by checking less is not
 improvement.
 
-## Machines
+## Drivers
 
 Each is one lifecycle, one vendor, one typed input and output, and one eval suite that
 knows no workflow and no site.
@@ -76,8 +76,8 @@ on it.
 
 ## Three rules
 
-1. `core/` imports no machine; machines import `core/` types.
-2. Every machine is replaceable behind its `machine.py` — which is what makes six
+1. `core/` imports no driver; drivers import `core/` types.
+2. Every driver is replaceable behind its `driver.py` — which is what makes six
    independent eval suites mean anything.
 3. **No machine knows a destination.** `uv run python -m evals.agnostic` fails the tree if
    any file under `factory/` names a host, a selector or a product. Procedures over a

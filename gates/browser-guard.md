@@ -89,7 +89,7 @@ and dispatches in one place; this does not. Nothing in these fixtures closes tha
 and no result here should be read as if it did.
 
 
-## Result — 2026-08-30, second run, driven through `browser/machine.py`
+## Result — 2026-08-30, second run, driven through `browser/driver.py`
 
     ok   F1 impostor swap       off_target   acted=False moves=0   no box
     ok   F2 consent overlay     intercepted  acted=False moves=70  covered DIV

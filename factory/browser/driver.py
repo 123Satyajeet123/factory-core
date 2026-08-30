@@ -20,12 +20,12 @@ from factory.browser import bodies as bodies_mod
 from factory.browser import locate, session
 from factory.browser.guard import press as press_guarded
 from factory.browser.hand import Hand, Pace
+from factory.core.drivers import Chooses
 from factory.core.evidence import Delivery, Did, Exchange
-from factory.core.machines import Chooses
 from factory.core.workflow import Target
 
 
-class Machine:
+class Browser:
     """One attached browser, driven."""
 
     def __init__(self, attached: session.Attached, hand: Hand) -> None:
@@ -35,7 +35,7 @@ class Machine:
 
     @classmethod
     async def attach(cls, cdp_url: str, *, seed: int | None = None,
-                     pace: Pace | None = None) -> Machine:
+                     pace: Pace | None = None) -> Browser:
         """`pace` is where a fit of the operator's own rhythm arrives.
 
         It is operator-scope rather than workflow-scope: how somebody drives a browser is a
