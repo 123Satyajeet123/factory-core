@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,8 @@ def _row(row: sqlite3.Row) -> Entry:
                  key=row["key"], value=json.loads(row["value"]),
                  confidence=Confidence(confirmed=row["confirmed"], refuted=row["refuted"],
                                        caused=row["caused"]),
-                 at=datetime.fromisoformat(row["at"]))
+                 at=datetime.fromisoformat(row["at"]),
+                 until=datetime.fromisoformat(row["until"]) if row["until"] else None)
 
 
 class Memory:
@@ -62,7 +63,7 @@ class Memory:
             got = self._db.execute(
                 "SELECT * FROM entry WHERE kind=? AND tier=? AND scope=? AND key=?",
                 (kind, tier, scope, key)).fetchone()
-            if got:
+            if got and _row(got).standing():
                 return _row(got)
         return None
 
@@ -74,13 +75,15 @@ class Memory:
         """
         #: Two statements rather than an interpolated column name: nothing user-supplied
         #: ever reaches SQL text here.
-        change = ("UPDATE entry SET confirmed = confirmed + 1, caused = caused + 1 "
-                  if confirmed and caused else
-                  "UPDATE entry SET confirmed = confirmed + 1 " if confirmed
-                  else "UPDATE entry SET refuted = refuted + 1 ")
+        change = (
+            "UPDATE entry SET confirmed = confirmed + 1, caused = caused + 1, until = NULL "
+            if confirmed and caused else
+            "UPDATE entry SET confirmed = confirmed + 1, until = NULL " if confirmed
+            else "UPDATE entry SET refuted = refuted + 1, until = :now ")
         self._db.execute(
-            change + "WHERE kind=? AND tier=? AND scope=? AND key=?",
-            (entry.kind, entry.tier, entry.scope, entry.key))
+            change + "WHERE kind=:kind AND tier=:tier AND scope=:scope AND key=:key",
+            {"kind": entry.kind, "tier": entry.tier, "scope": entry.scope,
+             "key": entry.key, "now": datetime.now(UTC).isoformat()})
         again = self.at(entry.kind, entry.key, entry.tier, entry.scope)
         assert again is not None
         return again
@@ -172,7 +175,32 @@ def _self_check() -> None:
         moved = memory.witnessed(moved, False)
     fell = memory.demote(moved)
     assert fell and fell.tier is Tier.EXECUTION, f"refutations drop it back: {fell}"
-    print("memory: inheritance, earned elevation, demotion on refutation")
+    #: M4 in gates/memory-vendor.md. Measured before this existed: an entry confirmed 50
+    #: times and refuted on its last 3 scores 0.846 and STAYS PROMOTED, and the arithmetic
+    #: cannot tell it from one refuted 3 times early and confirmed 50 since. A page that
+    #: changed yesterday kept its wide scope because it worked all last month.
+    memory.remember(Kind.TARGET, "send", "wide", tier=Tier.MAIN)
+    memory.remember(Kind.TARGET, "send", "narrow", tier=Tier.EXECUTION, scope="run-9")
+    narrow = memory.at(Kind.TARGET, "send", Tier.EXECUTION, "run-9")
+    for _ in range(50):
+        narrow = memory.witnessed(narrow, True)
+    assert bound(narrow.confidence) > EARNED, "fifty confirmations is a long record"
+    assert memory.recall(Kind.TARGET, "send", run="run-9").value == "narrow"
+
+    broke = memory.witnessed(narrow, False)
+    assert bound(broke.confidence) > EARNED, "one refutation does not move a long record"
+    assert not broke.standing(), "but it ends the entry's validity"
+    assert memory.recall(Kind.TARGET, "send", run="run-9").value == "wide", \
+        "a thing that stopped working is not answered with, however good its record"
+    assert memory.at(Kind.TARGET, "send", Tier.EXECUTION, "run-9") is not None, \
+        "and it is still THERE -- elevate and demote read it, resolution does not"
+
+    back = memory.witnessed(broke, True)
+    assert back.standing(), "proving itself again restores it"
+    assert memory.recall(Kind.TARGET, "send", run="run-9").value == "narrow"
+
+    print("memory: inheritance, earned elevation, demotion on refutation, and a long "
+          "record that broke is not answered with until it works again")
 
 
 if __name__ == "__main__":

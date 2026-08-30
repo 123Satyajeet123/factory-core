@@ -22,6 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from factory.compile.mine import contract_of, events, mined, shown_reversible
+from factory.core.contract import Contract
 from factory.core.ledger import Act, Segment
 from factory.core.verbs import Doing
 from factory.core.workflow import Step, Target, Workflow
@@ -49,20 +51,29 @@ def _anchor(act: Act) -> Any:
     )
 
 
-def as_trace(segment: Segment, name: str) -> Any:
-    """One demonstration, in the shape their compiler consumes."""
+def _their_step(act: Act, index: int = 0, intent: str = "") -> Any | None:
+    """One act, in the shape their compiler consumes. None for a doing they have no word for.
+
+    ONE BUILDER, TWO CALLERS. Alignment and effect mining both hand the vendor a step, and
+    they must hand it the SAME step: a contract derived against a step the aligner never
+    saw would be a check on something that was not compiled.
+    """
     from openadapt_flow.ir import ActionKind
     from openadapt_flow.ir import Step as TheirStep
+
+    kind = AS_ACTION.get(act.doing)
+    if kind is None:
+        return None
+    return TheirStep(id=f"a{index}", intent=intent or act.doing.value,
+                     action=ActionKind[kind], text=act.value or None, anchor=_anchor(act))
+
+
+def as_trace(segment: Segment, name: str) -> Any:
+    """One demonstration, in the shape their compiler consumes."""
     from openadapt_flow.ir import Workflow as TheirWorkflow
 
-    steps = []
-    for index, act in enumerate(segment.acts):
-        kind = AS_ACTION.get(act.doing)
-        if kind is None:
-            continue
-        steps.append(TheirStep(
-            id=f"a{index}", intent=segment.intent or act.doing.value,
-            action=ActionKind[kind], text=act.value or None, anchor=_anchor(act)))
+    steps = [built for index, act in enumerate(segment.acts)
+             if (built := _their_step(act, index, segment.intent)) is not None]
     return TheirWorkflow(name=name, steps=steps)
 
 
@@ -81,15 +92,128 @@ class Induced(BaseModel):
         return self.workflow is not None
 
 
+def contract_for(step: Step, shown: list[Segment]) -> Contract | None:
+    """What must be true after this step, derived from the acts it was induced from.
+
+    MATCHED THE WAY `binds_row` MATCHES, on doing and target. A second way of joining a
+    step back to the acts behind it would be a second mechanism, and the two would disagree
+    the first time either end grew a field -- silently, as a contract checking a step that
+    was compiled from somewhere else.
+
+    THE FIRST DEMONSTRATION THAT DERIVED ONE WINS, and that is safe because `binds_row`
+    runs after: whichever demonstration's value got bound, the field that varies is pointed
+    at its parameter rather than at that value.
+
+    NONE IS AN ANSWER. A step whose acts changed nothing observable gets no contract, and
+    `witness/coverage` counts it as demand rather than something papering over it as
+    checked. Filling one in to raise the number is the failure this whole path avoids.
+    """
+    for _, mining in _minings(step, shown):
+        got = contract_of(mining)
+        if got.expects:
+            return got
+    return None
+
+
+def _minings(step: Step, shown: list[Segment]) -> list[tuple[Act, Any]]:
+    """The vendor's mining of every act this step was induced from, in order."""
+    found = []
+    for segment in shown:
+        around = events(segment.acts, segment.after)
+        for index, (act, event) in enumerate(zip(segment.acts, around, strict=True)):
+            if act.doing is not step.doing or act.target != step.target:
+                continue
+            their = _their_step(act, index, segment.intent)
+            if their is not None:
+                found.append((act, mined(event, their)))
+    return found
+
+
+def findable(step: Step, shown: list[Segment]) -> bool:
+    """Can the control this step names be told apart from its siblings on that page?
+
+    ASKED OF THE RECORD, NOT OF A PAGE. `Act.among` is what the page was offering when the
+    person acted, described by the same function `locate` describes candidates with on
+    replay, so this is the answer `locate.settle` will give -- computed now, while somebody
+    is still there to answer it.
+
+    THE ORDINARY CASE IS A TABLE. Every row's control carries the same role and the same
+    name, a person picks one by where it sits, and `locate` refuses on two matches. Without
+    this the demonstration compiles clean and the step refuses on the first real run.
+
+    ONE DEMONSTRATION SEEING IT UNIQUELY IS NOT ENOUGH: if any demonstration saw siblings,
+    the page has them, and the run that meets them is the one that matters.
+    """
+    seen = [act for act, _ in _minings(step, shown)]
+    return bool(seen) and not any(act.ambiguous for act in seen)
+
+
+def consequential(step: Step, shown: list[Segment]) -> bool:
+    """Whether a person has to allow this step before it runs.
+
+    NOT A LIST OF VERBS, WHICH IS WHY THIS IS DERIVED AND NOT WRITTEN. A verb list does not
+    know that one press sends and the next saves a draft, and it would be per-destination
+    knowledge in a driver -- the thing `evals/agnostic` exists to refuse.
+
+    ONE DEMONSTRATION SHOWING IT REVERSIBLE IS ENOUGH. Whether an act can be taken back is
+    a property of the act, not of the afternoon: if any demonstration observed the effect
+    land somewhere readable, the step is one the system can check and undo reasoning about.
+    Everything else asks.
+    """
+    return not any(shown_reversible(mining) for _, mining in _minings(step, shown))
+
+
+def with_contracts(workflow: Workflow, shown: list[Segment]) -> Workflow:
+    """The same program, with every step told what to expect after it and what it costs.
+
+    IRREVERSIBILITY IS SET HERE FOR THE SAME REASON THE CONTRACT IS. `Step.irreversible`
+    is what `run/harness.py` checks before an act reaches the driver, and nothing set it:
+    a compiled send was indistinguishable from a compiled save, so the permit gate was a
+    branch that could not be taken.
+
+    ATTACHED HERE, NOT BY A CALLER. `contract_of` had no caller outside its own self-check
+    for as long as this function did not exist, so every compiled workflow reached the
+    harness with `contract=None` and the witness -- the whole point of the system -- never
+    ran on real work. A composition root that has to remember is a composition root that
+    forgets.
+    """
+    told = []
+    for step in workflow.steps:
+        contract = contract_for(step, shown)
+        changed: dict[str, Any] = {"irreversible": consequential(step, shown)}
+        if contract is not None:
+            changed["contract"] = binds_row(contract, workflow, shown)
+        told.append(step.model_copy(update=changed))
+    return workflow.model_copy(update={"steps": told})
+
+
+def unrepresentable(induced: Any) -> tuple[str, ...]:
+    graph = getattr(induced, "program", None)
+    asked = []
+    for state in (getattr(graph, "states", None) or {}).values():
+        if getattr(state, "step", None) is not None:
+            continue
+        carried = next((kind for kind in ("loop", "decision", "subflow")
+                        if getattr(state, kind, None) is not None), "")
+        if carried:
+            body = getattr(getattr(state, carried), "body", "") or carried
+            asked.append(f"{state.id} is a {carried} over {body!r} and this compiler has no "
+                         f"shape for one. Its steps are not in the graph, so emitting the "
+                         f"rest would be a program that runs clean and does part of the task.")
+    return tuple(asked)
+
+
 def program(segments: list[Segment], name: str) -> Induced:
     """Demonstrations in, a program or a refusal out."""
     got = induce(segments)
     asked = tuple(
         getattr(getattr(u, "question", None), "prompt", None) or getattr(u, "detail", "")
         for u in (getattr(got, "uncertainties", None) or []))
+    asked += unrepresentable(got)
     if asked:
         return Induced(questions=asked)
-    return Induced(workflow=workflow_of(got, name))
+    shown = [segment for segment in segments if segment.by_person()]
+    return Induced(workflow=with_contracts(workflow_of(got, name), shown))
 
 
 def induce(segments: list[Segment]) -> Any:

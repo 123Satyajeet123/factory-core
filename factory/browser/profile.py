@@ -11,6 +11,8 @@ import socket
 import subprocess
 from pathlib import Path
 
+from factory.core.errors import BrowserFailed
+
 #: Real binaries, in the order a person is most likely to already be signed in to.
 #: `families.py` replaces this ordering with a measured one; this is the fallback.
 BINARIES = (
@@ -24,7 +26,7 @@ def executable() -> str:
     for path in BINARIES:
         if Path(path).exists():
             return path
-    raise RuntimeError(f"no browser found; looked in {BINARIES}")
+    raise BrowserFailed(f"no browser found; looked in {BINARIES}")
 
 
 def taken(port: int) -> bool:
@@ -45,7 +47,7 @@ def launch(profile: Path, port: int) -> subprocess.Popen[bytes]:
     would also have; nothing announces that this session is driven.
     """
     if taken(port):
-        raise RuntimeError(
+        raise BrowserFailed(
             f"port {port} already has a listener; another browser is using this debugging "
             f"port and this one would never be reachable")
     profile.mkdir(parents=True, exist_ok=True)

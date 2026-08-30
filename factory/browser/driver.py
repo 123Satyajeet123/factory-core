@@ -302,6 +302,10 @@ class Browser:
         return Did(ok=True, value=given, exchanges=await self.fetched(),
                    detail=f"typed {len(typing)} characters")
 
+    async def write(self, text: str) -> Did:
+        await self.clear()
+        return await self.type(text)
+
     async def clear(self) -> None:
         """Select what is in the focused control, so the next thing typed replaces it.
 

@@ -127,3 +127,30 @@ compared a coroutine object to zero and was always true. Both kernel mutations r
 *caught* while the suite never executed. Found by a `RuntimeWarning`, not by the harness.
 Fixed, and the harness was then checked in the other direction — a mutation of a constant no
 case depends on is reported as SURVIVED, so a green run is falsifiable.
+
+
+## The kernel as a CONTEXT mechanism, and what the vendor supplies
+
+prime-agent name the pattern Recursive Language Models: keep the large object in the REPL as
+a variable and let the model query it by writing code, rather than loading it into a prompt.
+A ledger, a run trace, a DOM serialisation of 201 elements and a body of exchanges are all
+things this system has and none should enter a context window whole.
+
+**Searched, none found.** `rlm` supplies the persistent namespace and the code execution --
+that is the mechanism and it is adopted, not rebuilt. It ships no helper for the other half:
+getting an object in without it passing through a prompt, and describing it well enough that
+a model can write a useful first query. `rlm.harness.overview()` renders a SKILL REGISTRY,
+not an arbitrary object, and prime-agent's own "admission handle" is a child-agent spawn
+result. So `kernel/context.py` is ours and that is the measured gap.
+
+**Rejected: uploading the object and querying it in a hosted sandbox.** It works, and it is
+somebody else's machine. This system's evidence is a person's own browser traffic and their
+own ledger; sending it out in order to be able to ask about it inverts the premise.
+
+**The object goes by file, not by cell.** Inlining it as source pushes every byte through the
+protocol and into the runtime's linecache, which is the prompt problem moved one process to
+the left rather than solved.
+
+    a list of 800 rows with nested exchanges     164,460 B held
+    what the model is told about it                  163 B      (1009x)
+    a question answered by writing Python              3 B returned

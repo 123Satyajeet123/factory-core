@@ -16,6 +16,8 @@ import subprocess
 import threading
 from pathlib import Path
 
+from factory.core.errors import BrowserFailed
+
 HERE = Path(__file__).parent
 SERVER = HERE / "motion.js"
 
@@ -28,7 +30,7 @@ class Paths:
 
     def __init__(self) -> None:
         if not (HERE.parents[1] / "node_modules" / "ghost-cursor").exists():
-            raise RuntimeError("ghost-cursor is not installed; run `npm install`")
+            raise BrowserFailed("ghost-cursor is not installed; run `npm install`")
         self._next = 0
         self._process = subprocess.Popen(
             ["node", str(SERVER)], cwd=HERE.parents[1],
@@ -52,7 +54,7 @@ class Paths:
             self._process.stdin.flush()
             answer = json.loads(self._process.stdout.readline())
         if "error" in answer:
-            raise RuntimeError(f"path generation failed: {answer['error']}")
+            raise BrowserFailed(f"path generation failed: {answer['error']}")
         return [(x, y) for x, y in answer["points"]]
 
     def close(self) -> None:

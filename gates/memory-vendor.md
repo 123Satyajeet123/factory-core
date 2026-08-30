@@ -127,3 +127,37 @@ interval that ENDS -- is a better answer than `demote.py` moving an entry a tier
 our arithmetic currently renders identically. The idea is taken; the vendor is not, since it
 arrives with Neo4j. Recorded as owed rather than dismissed: `core/memory.Entry` would need a
 validity interval, and that is a change to `core/`.
+
+## M4 — paid, 2026-08-30. The idea, not the vendor.
+
+The debt above was recorded as owed. What it named turned out to be worse than stated, and
+it is measurable in three lines:
+
+    worked 50 times, then broke the last 3     bound=0.846  STAYS PROMOTED
+    broke 3 times, then worked 50              bound=0.846  STAYS PROMOTED
+    worked 8, broke 2, scattered               bound=0.490  demotes
+
+Counting receipts is order-blind. A resolution that worked all month and broke yesterday
+scores 0.846 and keeps its wide scope, and the arithmetic renders it identically to one
+that was shaky early and has been fine since. Those are different facts and the store said
+the same thing about both.
+
+**Taken: a validity that ends.** `Entry.until` is set by a witness refutation and cleared by
+a confirmation, and `recall` walks past an entry whose validity has ended. Not the streak
+counter I first reached for, which needs a threshold nobody derived, and not a bi-temporal
+graph, which needs Neo4j.
+
+**What it costs is one descent.** An entry taken out of service is re-resolved on the next
+run and restored the moment it works again, which is what `run/select.py` already does when
+a remembered target no longer resolves. One mechanism, now at the right layer.
+
+**`demote` is unchanged and still needed.** Validity answers "is this true now"; the Wilson
+bound answers "was this ever reliable". The scattered case above demotes on the bound and
+never ends its validity; the broken case ends its validity while its bound stays high.
+Two questions, two mechanisms, neither doing the other's job.
+
+**Load-bearing.** `evals/mutation.py` breaks `Entry.standing` to always return True and
+`factory.memory.driver` goes red: 10 of 10 caught, 0 survived.
+
+**Still owed:** the interval has one end. "This was true from the 3rd to the 30th" is a
+question this cannot answer, and nothing asks it yet.

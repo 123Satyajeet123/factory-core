@@ -54,7 +54,6 @@ async def run() -> int:
         print(f"{'surface':10} {'accessible: nodes / named':28} {'wire: bodies kept':20}")
         print("-" * 62)
         for surface in ("dom", "wire", "painted"):
-            driver.bodies.exchanges.clear()
             await driver.go(f"http://127.0.0.1:{PORT}/{surface}.html")
             await asyncio.sleep(0.8)
 

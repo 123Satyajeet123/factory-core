@@ -1,19 +1,3 @@
-"""Executes vendors.toml, which claims to be the only place a revision is written down.
-
-THE CLAIM IS WORTH NOTHING UNCHECKED. A manifest nothing verifies drifts silently: a clone
-moves, an npm range takes a minor, and the number in the file stops describing the tree
-while still reading as if it does. This makes the claim falsifiable.
-
-THREE ECOSYSTEMS, ONE MANIFEST, AND `path` SAYS WHICH. A clone under `candidates/` is
-pinned by commit and checked against `HEAD`; something under `node_modules/` is pinned by
-version and read from its `package.json`; an empty path is a distribution, pinned by version
-and read from installed metadata. The `use` field exists because an import is not the only
-way to depend on a project, and a check that inspected only imports would see none of them.
-
-MEASURED, ON THE FIRST RUN: `openadapt-flow` was declared as a clone at a commit and is
-actually a PyPI distribution at 1.34.0, imported by `compile/`. The pinned revision was not
-what ran, and nothing said so until this file existed.
-"""
 
 from __future__ import annotations
 
@@ -30,7 +14,6 @@ MANIFEST = HERE / "vendors.toml"
 
 @dataclass(frozen=True)
 class State:
-    """One vendor, as declared and as found."""
 
     name: str
     tier: int
@@ -45,8 +28,6 @@ class State:
 
     @property
     def pinned(self) -> bool:
-        #: A git rev is declared in full and reported in full; an npm version is declared
-        #: with a leading `v` that the package itself does not carry.
         return self.present and self.got.startswith(self.want.lstrip("v")[:12])
 
 
@@ -75,7 +56,6 @@ def declared() -> list[dict]:
 
 
 def state() -> list[State]:
-    """Every declared vendor, with what is actually on disk beside what was written down."""
     found = []
     for vendor in declared():
         where = HERE / vendor["path"] if vendor["path"] else HERE
@@ -91,12 +71,6 @@ def state() -> list[State]:
 
 
 def sync() -> int:
-    """Report every vendor against its pin. Non-zero when the tree stopped matching.
-
-    Deliberately does not fetch or check out. A revision moving under a working tree is a
-    decision, and a command that quietly made it would be the second mechanism this file
-    exists to prevent.
-    """
     drift = 0
     for vendor in state():
         if not vendor.present:
@@ -110,3 +84,7 @@ def sync() -> int:
         print(f"  {mark:8} {vendor.name:16} tier {vendor.tier}  use={vendor.use:14} {detail}")
     print(f"\n{len(state())} vendors declared, {drift} not matching the manifest (must be 0)")
     return 1 if drift else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(sync())

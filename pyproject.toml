@@ -7,8 +7,6 @@ description = "Turns a demonstrated browser workflow into work that proves itsel
 dependencies = [
     "playwright",         # BROWSER: attach, role+name resolution, raw CDP, bodies
     "mcp",
-    "litellm",
-    "instructor",
     "openadapt-flow",
     "apscheduler",
     "pydantic",
@@ -33,6 +31,13 @@ dev = ["ruff", "pytest"]
 # socket rather than a decoration.
 evals = ["inspect-ai", "outside-reader"]
 
+[tool.uv]
+# `uv sync` is the whole build (principle 13). Without this the evals group is not
+# installed, `outside-reader` is missing, and `evals/witness/socket_eval.py` fails on a
+# fresh clone -- proving the entry point group is a socket needs a reader published from
+# outside the tree to actually be there.
+default-groups = ["dev", "evals"]
+
 [tool.uv.sources]
 outside-reader = { path = "evals/witness/outside", editable = true }
 
@@ -44,9 +49,13 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
-# Real directories. A testpaths naming a directory with no tests exits 5 and reads
-# as silence rather than as a red suite.
-testpaths = ["factory", "evals"]
+# COLLECTION IS DELIBERATELY EMPTY. See gates/when-evals-run.md. Evals launch browsers,
+# spawn interpreters and bind ports; that is not something to have happening under somebody
+# who is editing. They are run by name.
+# An empty `testpaths` makes pytest fall back to the root and collect the VENDORED tests
+# under candidates/, so it names a real directory and excludes the clones instead.
+testpaths = ["evals"]
+norecursedirs = ["candidates", "node_modules", ".venv", ".venv-kernel"]
 
 [build-system]
 requires = ["hatchling"]

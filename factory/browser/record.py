@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -57,11 +58,23 @@ WATCH = """
 #: read from the page as it was, and a page that has moved on reports a different one.
 ACTS = "__factory_act"
 
+SETTLE = 20
+
 REPORT = """
 (() => {
   if (window.__factory_acts) return;
   window.__factory_acts = true;
   const say = (act) => { try { __factory_act(JSON.stringify(act)); } catch (e) {} };
+  const secret = (el) => {
+    if (el.type === 'password') return true;
+    const how = (el.getAttribute('autocomplete') || '').toLowerCase();
+    return how === 'current-password' || how === 'new-password';
+  };
+
+  const named = (el) =>
+    'secret:' + (location.hostname + '-' + (el.name || el.id || 'password'))
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
   const at = (el) => {
     const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
     return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 };
@@ -83,9 +96,10 @@ REPORT = """
       say({ doing: 'select', ...at(el), value: String(el.value) });
       return;
     }
-    if (writing && writing.on === el) { writing.act.value = String(el.value); return; }
+    const kept = secret(el) ? named(el) : String(el.value);
+    if (writing && writing.on === el) { writing.act.value = kept; return; }
     flush();
-    writing = { on: el, act: { doing: 'write', ...at(el), value: String(el.value) } };
+    writing = { on: el, act: { doing: 'write', ...at(el), value: kept } };
   }, true);
 
   addEventListener('mousedown', e => {
@@ -97,6 +111,7 @@ REPORT = """
   // in their own right and a form filled by tabbing records nothing without this.
   addEventListener('keydown', e => {
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) return;
+    flush();
     say({ doing: 'key', ...at(e.target), value: e.key });
   }, true);
 
@@ -212,7 +227,7 @@ async def _named(cdp: Any, x: float, y: float) -> Target | None:
     return None
 
 
-async def acts(context: Any, into: list[Act]) -> None:
+async def acts(context: Any, into: list[Act]) -> Callable[[], Awaitable[list[Any]]]:
     """Report every act a person performs on ANY surface, as it happens.
 
     EVERY PAGE, AND EVERY PAGE OPENED LATER. Installed on one page this recorded a fifth of
@@ -224,12 +239,16 @@ async def acts(context: Any, into: list[Act]) -> None:
     handler starts a task; the task asks the page what it just touched.
     """
     watching: set[Any] = set()
+    #: Every page's collector, so recording can be CLOSED. The last act's effect arrives
+    #: after it and has no next act to land on; this is where it is taken instead.
+    collectors: list[tuple[Any, Bodies]] = []
 
     async def attach(page: Any) -> None:
         if page in watching:
             return
         watching.add(page)
         cdp = await context.new_cdp_session(page)
+        await cdp.send("Runtime.enable", {})
         await cdp.send("Runtime.addBinding", {"name": ACTS})
         #: ONE COLLECTOR PER SURFACE, THE SAME WAY ONE RECORDER PER SURFACE. A `Bodies`
         #: reads request ids off the session that saw them, so a single one attached to
@@ -238,6 +257,7 @@ async def acts(context: Any, into: list[Act]) -> None:
         kept = Bodies()
         await cdp.send("Network.enable", {})
         kept.watch(cdp)
+        collectors.append((cdp, kept))
 
         def reported(message: dict[str, Any]) -> None:
             if message.get("name") != ACTS:
@@ -283,6 +303,19 @@ async def acts(context: Any, into: list[Act]) -> None:
     #: A surface opened after recording started is one the person chose to open, which is
     #: the ordinary case in a task that spans tools.
     context.on("page", lambda page: asyncio.get_running_loop().create_task(attach(page)))
+
+    async def close() -> list[Any]:
+        for _ in range(SETTLE):
+            if not any(kept.waiting() for _, kept in collectors):
+                break
+            await asyncio.sleep(0.1)
+        drained: list[Any] = []
+        for cdp, kept in collectors:
+            with contextlib.suppress(Exception):
+                drained.extend(await kept.drain(cdp))
+        return drained
+
+    return close
 
 
 async def drain(page: Any) -> Watched:

@@ -1,14 +1,3 @@
-"""One `python -m rlm.repl` process, spoken to over Protocol 3.
-
-READS ON A THREAD, DELIVERS ON THE LOOP. A blocking `readline` is the only way to take
-frames off a pipe without polling, and the runtime interleaves a cell's output with its
-`done` -- so the thread does nothing but parse and hand over, and every decision happens on
-the event loop where the caller is.
-
-THE HANDSHAKE REFUSES RATHER THAN ADAPTS. `ready` carries the protocol number; a different
-one means the frames in `protocol.py` may not describe what is on the wire, and guessing
-there produces a cell that appears to run and did not.
-"""
 
 from __future__ import annotations
 
@@ -21,26 +10,22 @@ import threading
 import time
 from typing import Any
 
+from factory.core.errors import KernelFailed
 from factory.kernel import protocol, venv
 from factory.kernel.protocol import Cell, Status
 from factory.kernel.tools import Bridge
 
 
-class KernelError(RuntimeError):
-    """Nothing bare crosses this driver's boundary."""
+class KernelError(KernelFailed):
+    pass
 
 
-#: Put on the queue when the runtime's pipe closes. Not a protocol frame -- the runtime
-#: cannot send one, which is the point.
 GONE = {"event": "__gone__"}
 
 
 class Session:
-    """A live runtime. Not reusable once closed."""
 
     def __init__(self, bridge: Bridge | None = None) -> None:
-        #: With no bridge a cell can still run code; it just cannot name a server, because
-        #: every `mcp.config` request is refused. Absent is a state, never a stub.
         self._bridge = bridge or Bridge()
         self._process: subprocess.Popen[str] | None = None
         self._frames: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -67,7 +52,6 @@ class Session:
         return self
 
     def _read(self, loop: asyncio.AbstractEventLoop) -> None:
-        """Parse frames off the pipe. Never decides anything."""
         assert self._process and self._process.stdout
         for line in self._process.stdout:
             if not line.strip():
@@ -77,17 +61,9 @@ class Session:
             except ValueError:
                 continue  # the runtime answers a malformed line itself; ours cannot be one
             loop.call_soon_threadsafe(self._deliver, frame)
-        #: The pipe closed, so the runtime is gone. Anyone waiting for a `done` would
-        #: otherwise wait the full timeout for an answer that can no longer arrive.
         loop.call_soon_threadsafe(self._frames.put_nowait, GONE)
 
     def _deliver(self, frame: dict[str, Any]) -> None:
-        """Every frame passes here, on the loop.
-
-        A `host_request` is answered from this one place rather than by whoever happens to
-        be collecting: its id is a runtime-minted uuid, not a cell id, so a collector
-        filtering on its own id would drop it and the asking cell would wait forever.
-        """
         if frame.get("event") == "host_request":
             answer = self._bridge.answer(frame.get("data") or {})
             with contextlib.suppress(KernelError, OSError):
@@ -113,18 +89,9 @@ class Session:
 
     async def run(self, code: str, *, timeout: float = 30.0,
                   grace: float = 5.0) -> Cell:
-        """Execute one cell and collect everything the runtime said about it.
-
-        On timeout the cell is interrupted rather than abandoned: a request stays
-        interrupt-targetable until its `done`, so the recovery is the runtime's own and the
-        session stays usable. `grace` bounds that recovery -- if `done` does not arrive even
-        after the interrupt, the runtime is wedged and saying so is the honest outcome.
-        """
         cell_id = str(next(self._ids))
         cell = Cell(id=cell_id, status=Status.OK)
         started = time.perf_counter()
-        #: A dead runtime is reported the same way as a cell that killed it. One shape for
-        #: a caller to handle; `alive` is how it asks whether to start another.
         if not self.alive:
             return cell.model_copy(update={
                 "status": Status.ERROR, "ename": "Died",
@@ -134,8 +101,6 @@ class Session:
         try:
             await self._collect(cell, timeout)
         except TimeoutError:
-            #: A runtime that died between the send and the timeout cannot be interrupted,
-            #: and trying raises where a caller expects a Cell.
             with contextlib.suppress(KernelError, OSError):
                 self._send(protocol.interrupt(cell_id))
             try:
@@ -147,7 +112,6 @@ class Session:
         return cell
 
     async def _collect(self, cell: Cell, timeout: float) -> None:
-        """Drain frames into the cell until its own `done` arrives."""
         async with asyncio.timeout(timeout):
             while True:
                 frame = await self._frames.get()
@@ -159,8 +123,6 @@ class Session:
                 if event == "done" and at == cell.id:
                     cell.status = Status(frame.get("status", "error"))
                     return
-                #: `id: null` is a raw fd write with no provable owner. It happened during
-                #: this cell and is kept: dropping it loses a subprocess's entire output.
                 if at not in (cell.id, None):
                     continue
                 if event == "stdout":
@@ -176,11 +138,9 @@ class Session:
 
     @property
     def alive(self) -> bool:
-        """Whether the runtime is still there to be asked."""
         return self._process is not None and self._process.poll() is None
 
     async def interrupt(self) -> None:
-        """Applies to the running request, or parks for the next one."""
         self._send(protocol.interrupt())
 
     async def close(self) -> None:

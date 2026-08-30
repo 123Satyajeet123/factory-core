@@ -13,6 +13,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 from factory.authority import permit as permits
+from factory.browser.locate import Found
 from factory.core.evidence import Did
 from factory.core.verbs import Doing
 from factory.core.workflow import Step, Target, Workflow
@@ -21,10 +22,17 @@ from factory.run import harness
 
 
 class Counting:
-    """A driver that does nothing and remembers being asked."""
+    """A driver that does nothing and remembers being asked.
+
+    ITS SIGNATURES MATCH THE REAL DRIVER'S, AND THAT IS NOT COSMETIC. `find` took one
+    argument here while `browser/driver.py` takes two; nothing noticed until `run/select.py`
+    was wired in and passed the second. A stub that has drifted from the interface it stands
+    in for tests the stub.
+    """
 
     def __init__(self) -> None:
         self.asked: list[str] = []
+        self._last = Target()
 
     async def on(self, _surface: str) -> bool:
         return True
@@ -32,12 +40,13 @@ class Counting:
     async def next_row(self) -> None:
         return None
 
-    async def click(self, target: Target) -> Did:
-        self.asked.append(target.described())
-        return Did(ok=True, detail="pressed")
+    async def find(self, target: Target, _chooser: object = None) -> Found:
+        self._last = target
+        return Found(backend_node_id=1, rung="structural", resolved=target)
 
-    async def find(self, _target: Target) -> object:
-        return None
+    async def press(self, _found: Found) -> Did:
+        self.asked.append(self._last.described())
+        return Did(ok=True, detail="pressed")
 
 
 SEND = Step(doing=Doing.PRESS, intent="send it", irreversible=True,

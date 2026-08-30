@@ -30,7 +30,9 @@ import os
 import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
+from factory.browser.bodies import worth_reading
 from factory.core.contract import Receipt, Verdict
 from factory.kernel.venv import HERE, KEEP
 from factory.witness.channel import Channel
@@ -73,7 +75,77 @@ def _repo_on_the_path() -> dict[str, str]:
     return kept | {"PYTHONPATH": str(HERE), "PYTHONNOUSERSITE": "1"}
 
 
+async def _keeps_everything(self, cdp: Any) -> list[Any]:
+    """A collector that accumulates. What `drain` returning every response ever means."""
+    from factory.core.evidence import Exchange
+
+    taken, self._pending = self._pending, {}
+    for request_id, seen in taken.items():
+        body = None
+        if worth_reading(seen["content_type"]):
+            with contextlib.suppress(Exception):
+                body = (await cdp.send("Network.getResponseBody",
+                                       {"requestId": request_id})).get("body")
+        self._ever = getattr(self, "_ever", [])
+        self._ever.append(Exchange(url=seen["url"], status=seen["status"],
+                                   content_type=seen["content_type"],
+                                   size=len(body or ""), body=body))
+    return getattr(self, "_ever", [])
+
+
+def _learns_from_resemblance(contract, did) -> dict[str, tuple[str, ...]]:
+    """A mapping built from a value that merely LOOKS like the one expected.
+
+    The one way a learned reader manufactures a false confirmation rather than missing one:
+    bind a path because something near it resembled the expectation, and every later run
+    confirms against whatever sits there.
+    """
+    import json
+
+    from factory.witness.learn import _paths
+
+    learned: dict[str, tuple[str, ...]] = {}
+    for exchange in did.exchanges:
+        if not exchange.body:
+            continue
+        try:
+            parsed = json.loads(exchange.body)
+        except (ValueError, TypeError):
+            continue
+        for path, held in _paths(parsed):
+            for field, want in contract.expects.items():
+                if field not in learned and (held in want or want in held or held):
+                    learned[field] = path
+    return learned
+
+
+def _never_stops_being_true(self, now: Any = None) -> bool:
+    """An entry whose validity cannot end. What counting receipts without ordering means."""
+    return True
+
+
 MUTATIONS = (
+    Mutation(
+        name="an entry's validity never ends",
+        invalidates="a long record that broke is not answered with until it works again",
+        module="factory.core.memory", attribute="Entry.standing",
+        replacement=_never_stops_being_true,
+        suites=("factory.memory.driver",)),
+
+    Mutation(
+        name="a path is learned from resemblance, not equality",
+        invalidates="nothing is learned from a body that never carried the value",
+        module="factory.witness.learn", attribute="mapping",
+        replacement=_learns_from_resemblance,
+        suites=("evals.witness.learned_eval",)),
+
+    Mutation(
+        name="evidence outlives the act it belongs to",
+        invalidates="an act is never confirmed by another act's evidence",
+        module="factory.browser.bodies", attribute="Bodies.drain",
+        replacement=_keeps_everything,
+        suites=("evals.witness.stale_eval",)),
+
     Mutation(
         name="a channel we authored may witness",
         invalidates="render-only and injected readers are refused",
@@ -141,12 +213,25 @@ def noticed(suite: str) -> bool:
     always true, so every mutation reads as caught and the harness certifies nothing.
     Measured: both kernel mutations passed this way before the check below existed.
     """
-    run: Callable[[], int | Awaitable[int]] = importlib.import_module(suite).run
+    module = importlib.import_module(suite)
+    #: THREE ENTRY SHAPES EXIST IN THIS TREE and this file used to assume one. `any()`
+    #: short-circuits, so the second suite in `SUITES` was only ever reached when the first
+    #: failed to catch -- exactly the case a survivor is reported from -- and it raised
+    #: AttributeError there instead. A latent crash in the guard of the guards.
+    run: Callable[[], int | Awaitable[int]] | None = next(
+        (found for found in (getattr(module, name, None)
+                             for name in ("run", "main", "_self_check")) if found), None)
+    if run is None:
+        raise AttributeError(f"{suite} offers no run(), main() or _self_check()")
     with contextlib.redirect_stdout(io.StringIO()):
-        answer = run()
-        if inspect.isawaitable(answer):
-            answer = asyncio.run(answer)
-    return answer != 0
+        try:
+            answer = run()
+            if inspect.isawaitable(answer):
+                answer = asyncio.run(answer)
+        except AssertionError:
+            #: A `_self_check` reports by raising. Noticing is noticing.
+            return True
+    return bool(answer)
 
 
 def run() -> int:

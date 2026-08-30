@@ -30,7 +30,11 @@ class Kind(StrEnum):
     #: permit is a thing known at a scope, and the tiers, the store and the scope chain
     #: already exist -- a second store for consent would be a second thing to keep true.
     PERMIT = "permit"
+    CADENCE = "cadence"
     TARGET = "target"
+    #: Where in a body a field the contract names actually sits. Learned from an act
+    #: nobody could read, so the next run of the same surface can.
+    READING = "reading"
     SOURCE = "source"
 
 
@@ -69,3 +73,7 @@ class Entry(BaseModel):
     value: Any = None
     confidence: Confidence = Field(default_factory=Confidence)
     at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    until: datetime | None = None
+
+    def standing(self, now: datetime | None = None) -> bool:
+        return self.until is None or (now or datetime.now(UTC)) < self.until

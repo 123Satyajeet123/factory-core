@@ -168,6 +168,13 @@ green with **zero readers registered** — every act `unverifiable`, W4's number
 must fail if a synthetic reader that confirms everything is admitted. That is the empty
 scaffold control from `gates/benchmarks.md`, aimed at perception instead of skills.
 
+**ONE LIST, TWO JOBS, DELIBERATELY.** Membership in `QUALITY` decides whether a channel may
+witness at all; position decides which rung is asked first. A separate set of "channels that
+are ours" would be a second mechanism doing the same job, and the two would drift the first
+time a channel was added. DOM is absent from it, and that is the non-obvious member: a click
+mutates the document directly and nothing in the document separates a mutation we caused from
+one a server caused, so a channel we cannot prove we did not author cannot witness.
+
 **W8 order by truth does not move.** The ladder is ordered by evidence quality. A lower rung
 never overrides a higher one, and the order is not scored on outcomes — that is `run/select`,
 which is a different question with a different answer.

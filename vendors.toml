@@ -80,3 +80,14 @@ path    = "node_modules/@fingerprintjs/botd"
 license = "MIT"
 imports = ""
 why     = "the MEASURING INSTRUMENT for gates/detectability.md, pinned on the same terms as a component: a detector whose version moves silently makes every number it produced irreproducible"
+
+[[vendor]]
+name    = "playwright"
+tier    = 1
+use     = "import"
+url     = "https://github.com/microsoft/playwright-python"
+rev     = "1.62.0"
+path    = ""
+license = "Apache-2.0"
+imports = "playwright"
+why     = "BROWSER spine since gates/browser-spine.md. Attach, CDP transport, page lifecycle, response bodies. It does NOT supply resolution -- a locator returns a handle where Accessibility.queryAXTree returns the node id the guard needs -- and it does not supply acts"

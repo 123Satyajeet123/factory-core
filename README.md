@@ -47,7 +47,7 @@ knows no workflow and no site.
 |---|---|---|
 | `browser/` | intent to acts, page to perception | playwright + raw CDP + ghost-cursor |
 | `kernel/` | code to effects | prime-agent `rlm`, in its own venv |
-| `model/` | context to a typed decision | litellm + instructor |
+| `model/` | context to a typed decision | anthropic |
 | `witness/` | a contract and a destination to a verdict | none — ours |
 | `memory/` | receipts to what is known, at what scope | ours for exact, a vendor for fuzzy |
 | `capability/` | evidence to an installed, callable tool | the prime-agent skill format |
@@ -66,6 +66,9 @@ Where we deliberately do not use a vendor call, the file says which call and why
 
 Standard tooling throughout: pydantic for types, ruff, pytest, structlog, OTLP. No bespoke
 framework, and no abstraction with one implementation.
+
+`gates/model-vendor.md` is what that costs a vendor: litellm and instructor were declared
+before they were measured, and both were dropped on measurement rather than defended.
 
 ## Using it
 
@@ -122,8 +125,8 @@ is no permit: an unattended run cannot grant itself permission.
    any file under `factory/` names a host, a selector or a product. Procedures over a
    destination are capabilities, and capabilities come from evidence through
    `capability/` — never from a file somebody wrote.
-4. **No seam files.** Every vendor is used through documented API. `model/router.py` is
-   the only strategy subclass in the tree. An `extend/`-shaped folder appearing means we
+4. **No seam files.** Every vendor is used through documented API, and there is no
+   subclass of a vendor type in the tree. An `extend/`-shaped folder appearing means we
    have gone deeper than tier 2 somewhere, and that needs a gate before it needs code.
 5. **Order by truth is fixed; order by cost is learned.** `witness/ladder.py` is ordered
    by evidence quality and does not move. `run/select.py` is ordered by cost, which is an

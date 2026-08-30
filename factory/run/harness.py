@@ -81,8 +81,7 @@ async def one_step(browser: Any, step: Step, row: Mapping[str, str], *,
     pressed = await browser.press(found)
     if not pressed.ok:
         return pressed, found.rung, resolving
-    await browser.clear()
-    return await browser.type(step.wants(row)), found.rung, resolving
+    return await browser.write(step.wants(row)), found.rung, resolving
 
 
 def supplied(workflow: Workflow, row: Mapping[str, str],

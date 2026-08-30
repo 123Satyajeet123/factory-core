@@ -55,8 +55,8 @@ def door(browser: Browser, *, name: str = "factory-browser") -> Any:
 
     @app.tool()
     async def write(text: str) -> dict[str, Any]:
-        """Type into whatever holds focus, key by key."""
-        return (await browser.type(text)).model_dump(mode="json")
+        """Replace what the focused control holds, key by key."""
+        return (await browser.write(text)).model_dump(mode="json")
 
     @app.tool()
     async def go(url: str) -> dict[str, Any]:

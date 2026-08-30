@@ -1,1 +1,1 @@
-"""MODEL. Vendor: litellm, instructor."""
+"""MODEL. Vendor: anthropic."""

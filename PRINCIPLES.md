@@ -54,6 +54,13 @@ This is what makes principle 1 worth anything: six independent suites are the on
 
 **Enforced by:** no driver is wired into `main.py` before its suite runs green.
 
+## 3a. Evals run when they are asked for, never on their own
+
+An eval launches a browser, spawns an interpreter and binds ports. Running the set under
+somebody who is editing takes their machine and reports failures about a tree that was
+changing while it was read. `uv run pytest` collects nothing; suites are run by name. See
+`gates/when-evals-run.md`.
+
 ## 4. Every claim has a call site
 
 A gate's Result is a snapshot of one execution. The claim it records must be re-runnable on
