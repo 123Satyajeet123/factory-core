@@ -31,14 +31,27 @@ class Kind(StrEnum):
 
 
 class Confidence(BaseModel):
-    """Receipts for and against. Never a model's report of how sure it is."""
+    """Receipts for and against. Never a model's report of how sure it is.
+
+    `caused` is the subset of `confirmed` where the contract named an idempotency field --
+    a value that exists only because the act wrote it. The rest confirm that the world is
+    CONSISTENT with the act having worked, which is a weaker claim wearing the same word.
+    Counted apart so a policy can demand the stronger one, and so the share of promotion
+    resting on the weaker one is visible rather than assumed away.
+    """
 
     confirmed: int = 0
     refuted: int = 0
+    caused: int = 0
 
     @property
     def receipts(self) -> int:
         return self.confirmed + self.refuted
+
+    @property
+    def present_only(self) -> int:
+        """Confirmations that could not tell caused from already there."""
+        return self.confirmed - self.caused
 
 
 class Entry(BaseModel):

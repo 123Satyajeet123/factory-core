@@ -22,7 +22,7 @@ from typing import Any
 
 from factory.core.memory import Confidence, Entry, Kind, Tier
 from factory.memory import scope as scoping
-from factory.memory.confidence import bound
+from factory.memory.confidence import bound, caused_bound
 from factory.store.db import open_at
 
 #: The bound an entry must clear to earn a wider scope. One threshold, one meaning: how
@@ -33,7 +33,8 @@ EARNED = 0.75
 def _row(row: sqlite3.Row) -> Entry:
     return Entry(kind=Kind(row["kind"]), tier=Tier(row["tier"]), scope=row["scope"],
                  key=row["key"], value=json.loads(row["value"]),
-                 confidence=Confidence(confirmed=row["confirmed"], refuted=row["refuted"]),
+                 confidence=Confidence(confirmed=row["confirmed"], refuted=row["refuted"],
+                                       caused=row["caused"]),
                  at=datetime.fromisoformat(row["at"]))
 
 
@@ -65,11 +66,17 @@ class Memory:
                 return _row(got)
         return None
 
-    def witnessed(self, entry: Entry, confirmed: bool) -> Entry:
-        """One receipt. The only thing that moves an entry's standing."""
+    def witnessed(self, entry: Entry, confirmed: bool, *, caused: bool = False) -> Entry:
+        """One receipt. The only thing that moves an entry's standing.
+
+        `caused` is true when the contract named an idempotency field, so the confirmation
+        proved this act wrote the value rather than that the value is there.
+        """
         #: Two statements rather than an interpolated column name: nothing user-supplied
         #: ever reaches SQL text here.
-        change = ("UPDATE entry SET confirmed = confirmed + 1 " if confirmed
+        change = ("UPDATE entry SET confirmed = confirmed + 1, caused = caused + 1 "
+                  if confirmed and caused else
+                  "UPDATE entry SET confirmed = confirmed + 1 " if confirmed
                   else "UPDATE entry SET refuted = refuted + 1 ")
         self._db.execute(
             change + "WHERE kind=? AND tier=? AND scope=? AND key=?",
@@ -85,10 +92,19 @@ class Memory:
             (kind, tier, scope, key)).fetchone()
         return _row(got) if got else None
 
-    def elevate(self, entry: Entry, *, earned: float = EARNED) -> Entry | None:
-        """Move it a tier wider if its receipts say so. Returns where it went, or None."""
+    def elevate(self, entry: Entry, *, earned: float = EARNED,
+                require_cause: bool = False) -> Entry | None:
+        """Move it a tier wider if its receipts say so. Returns where it went, or None.
+
+        `require_cause` demands confirmations that proved this act wrote the value. It is
+        off by default because most destinations issue no idempotency key, and a rule that
+        promotes nothing is a rule nobody keeps -- but the share of promotion resting on
+        presence alone is visible in `Confidence.present_only` rather than hidden in a
+        single number.
+        """
         wider = scoping.wider(entry.tier)
-        if wider is None or bound(entry.confidence) < earned:
+        earn = caused_bound if require_cause else bound
+        if wider is None or earn(entry.confidence) < earned:
             return None
         #: A wider scope is a smaller scope string, not a bigger one: WORKFLOW keeps the
         #: workflow, MAIN keeps nothing.
@@ -134,6 +150,9 @@ def _self_check() -> None:
     assert memory.elevate(entry) is None, "three in a row is 0.44, and does not clear 0.75"
     for _ in range(9):
         entry = memory.witnessed(entry, True)
+    assert memory.elevate(entry, require_cause=True) is None, \
+        "twelve confirmations that only proved presence prove nothing about causation"
+    assert entry.confidence.present_only == 12, entry.confidence
     moved = memory.elevate(entry)
     assert moved and moved.tier is Tier.WORKFLOW, f"twelve is 0.76, and does: {moved}"
     assert memory.at(Kind.TARGET, "save", Tier.EXECUTION, "run-1") is None, "moved, not copied"

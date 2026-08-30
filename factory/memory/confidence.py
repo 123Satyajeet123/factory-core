@@ -32,6 +32,16 @@ def bound(confidence: Confidence) -> float:
     return max(0.0, (middle - spread) / (1 + Z * Z / n))
 
 
+def caused_bound(confidence: Confidence) -> float:
+    """The same bound, over confirmations that proved causation.
+
+    A presence-only confirmation counts neither for nor against: it is not evidence the act
+    worked, and it is not evidence it did not. Treating it as either would be inventing a
+    weight nobody measured.
+    """
+    return bound(Confidence(confirmed=confidence.caused, refuted=confidence.refuted))
+
+
 def _self_check() -> None:
     """uv run python -m factory.memory.confidence"""
     perfect = [(n, bound(Confidence(confirmed=n))) for n in (3, 12, 30)]
@@ -44,8 +54,17 @@ def _self_check() -> None:
     assert one_bad < perfect[1][1], "a refutation moves the bound down"
     assert bound(Confidence(confirmed=1, refuted=1)) < bound(Confidence(confirmed=12)), \
         "a coin flip never outranks a record"
+    #: Twelve confirmations that only ever proved presence say nothing about causation.
+    present = Confidence(confirmed=12, caused=0)
+    assert bound(present) > 0.75 >= caused_bound(present), \
+        "presence-only clears the plain bound and not the caused one"
+    proved = Confidence(confirmed=12, caused=12)
+    assert caused_bound(proved) == bound(proved), "when every receipt proved it, they agree"
+
     print("confidence:", {n: round(b, 2) for n, b in perfect},
-          "| 11/12 with one refuted:", round(one_bad, 2))
+          "| 11/12 with one refuted:", round(one_bad, 2),
+          "| 12 present-only: bound", round(bound(present), 2),
+          "caused", round(caused_bound(present), 2))
 
 
 if __name__ == "__main__":

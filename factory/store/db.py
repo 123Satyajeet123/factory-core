@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS entry (
     value      TEXT NOT NULL,
     confirmed  INTEGER NOT NULL DEFAULT 0,
     refuted    INTEGER NOT NULL DEFAULT 0,
+    caused     INTEGER NOT NULL DEFAULT 0,
     at         TEXT NOT NULL,
     PRIMARY KEY (kind, tier, scope, key)
 );
@@ -31,4 +32,8 @@ def open_at(path: Path | str) -> sqlite3.Connection:
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA journal_mode=WAL")
     db.executescript(SCHEMA)
+    #: A column added after a store existed. `CREATE TABLE IF NOT EXISTS` will not add one,
+    #: and an older file would otherwise fail on first read rather than on migration.
+    if "caused" not in {row["name"] for row in db.execute("PRAGMA table_info(entry)")}:
+        db.execute("ALTER TABLE entry ADD COLUMN caused INTEGER NOT NULL DEFAULT 0")
     return db
