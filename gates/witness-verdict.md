@@ -208,8 +208,34 @@ with these values is there", never "this act put it there". A record that alread
 confirms. The contract is what carries the difference -- derived from the demonstration's
 delta, it binds what CHANGED -- and that derivation is not built, so the gap is real today.
 
-**W4 is unbuilt.** Nothing counts unverifiable by the shape of surface that defeated it, so
-the demand signal that would say which reader to manufacture first does not exist.
+**W4 CLOSED — 2026-08-30.** A run of eight acts across four shapes:
+
+    acts 8   confirmed 2   refuted 1   unverifiable 5
+    ceiling on promotion  38%   (the rest could never be promoted, however cheap it got)
+
+      3 acts  paints, carries no structured body [text/html]     fields=['id']
+      1 acts  the step fetched nothing [nothing]                 fields=['id']
+      1 acts  structured, but the field is not in it [application/json]  fields=['sent_at']
+
+    build this reader first: paints, carries no structured body for ['text/html']
+
+**The tally is keyed by SHAPE, never by host, and that is the whole difference.** Keyed by
+destination it would say where we failed. Keyed by what the surface offered, it says what to
+build -- and the answer transfers to every other destination of the same shape, which is
+what makes it an input to manufacturing rather than a bug report.
+
+**`Blocked` is phrased as what would fix it**, not as what went wrong: `paints, carries no
+structured body` names a reader. `unverifiable` alone named nothing, which is why it had no
+outgoing edge.
+
+**The ceiling is the point.** 38% is the most of that run that could ever be promoted,
+however cheap execution became. Cheapness is bounded by what can be checked, so this number
+bounds the product claim -- and it was invisible before, because `unverifiable` moves
+neither side of the Wilson arithmetic.
+
+**Guarded against being right for the wrong reason:** a fully witnessed run reports no
+demand and a ceiling of 100%. A tally that always names something to build would be as
+useless as one that never did.
 
 **W7 CLOSED — 2026-08-30.** A reader published from outside `factory/` reaches a verdict
 with nothing under `witness/` edited:

@@ -13,11 +13,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from factory.core.evidence import Exchange
+from factory.core.evidence import STRUCTURED, Exchange
 
 #: Filters on HTTP metadata and never on content. A body is read because of what it is, not
 #: because of what it says, so nothing here knows a site.
-STRUCTURED = ("json", "csv", "xml", "x-ndjson", "plain")
 TOO_BIG = 32_000
 
 

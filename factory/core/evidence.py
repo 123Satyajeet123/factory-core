@@ -45,6 +45,12 @@ class Did(BaseModel):
     exchanges: list[Exchange] = Field(default_factory=list)
 
 
+#: Content types that carry fields rather than pixels. One list: `browser/bodies.py` uses
+#: it to decide what to keep, `witness/coverage.py` to say what a surface offered. Two
+#: copies would disagree the first time one grew an entry.
+STRUCTURED = ("json", "csv", "xml", "x-ndjson", "plain")
+
+
 class Exchange(BaseModel):
     """One response the page fetched for itself."""
 
@@ -53,6 +59,11 @@ class Exchange(BaseModel):
     content_type: str = ""
     size: int = 0
     body: str | None = None
+
+    @property
+    def structured(self) -> bool:
+        """Whether this response carries fields something could read."""
+        return any(mark in self.content_type for mark in STRUCTURED)
 
 
 Did.model_rebuild()
