@@ -16,11 +16,13 @@ password store and this project does not hold those.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from typing import Any
 
 from pydantic import BaseModel, Field
 
+from factory.browser import surface
 from factory.core.ledger import Act, Doing
 from factory.core.workflow import Target
 
@@ -175,31 +177,53 @@ async def _named(cdp: Any, x: float, y: float) -> Target | None:
     return None
 
 
-async def acts(page: Any, cdp: Any, into: list[Act]) -> None:
-    """Report every act a person performs into `into`, as it happens.
+async def acts(context: Any, into: list[Act]) -> None:
+    """Report every act a person performs on ANY surface, as it happens.
+
+    EVERY PAGE, AND EVERY PAGE OPENED LATER. Installed on one page this recorded a fifth of
+    a five-tab task and produced a ledger that looked complete -- measured: an act on a
+    second surface left no trace at all while its request reached the server.
 
     THE RESOLUTION RUNS OFF THE HANDLER. Awaiting a CDP request inside a handler for an
-    event on the same connection hangs forever -- the same rule `browser/bodies.py` records.
-    The handler starts a task; the task asks the page what it just touched.
+    event on the same connection hangs forever -- the rule `browser/bodies.py` records. The
+    handler starts a task; the task asks the page what it just touched.
     """
-    await cdp.send("Runtime.addBinding", {"name": ACTS})
+    watching: set[Any] = set()
 
-    def reported(message: dict[str, Any]) -> None:
-        if message.get("name") != ACTS:
+    async def attach(page: Any) -> None:
+        if page in watching:
             return
-        said = json.loads(message.get("payload") or "{}")
+        watching.add(page)
+        cdp = await context.new_cdp_session(page)
+        await cdp.send("Runtime.addBinding", {"name": ACTS})
 
-        async def resolve() -> None:
-            target = await _named(cdp, said.get("x", 0), said.get("y", 0))
-            into.append(Act(doing=Doing(said["doing"]), target=target,
-                            value=str(said.get("value", "")),
-                            where=(said.get("x"), said.get("y"))))
+        def reported(message: dict[str, Any]) -> None:
+            if message.get("name") != ACTS:
+                return
+            said = json.loads(message.get("payload") or "{}")
 
-        asyncio.get_running_loop().create_task(resolve())
+            async def resolve() -> None:
+                target = await _named(cdp, said.get("x", 0), said.get("y", 0))
+                into.append(Act(doing=Doing(said["doing"]), target=target,
+                                value=str(said.get("value", "")),
+                                surface=surface.of(page.url),
+                                where=(said.get("x"), said.get("y"))))
 
-    cdp.on("Runtime.bindingCalled", reported)
-    await page.add_init_script(REPORT)
-    await page.evaluate(REPORT)
+            asyncio.get_running_loop().create_task(resolve())
+
+        cdp.on("Runtime.bindingCalled", reported)
+        await page.add_init_script(REPORT)
+        #: A page still navigating has no context to evaluate in yet; the init script
+        #: installed above catches it when it does.
+        with contextlib.suppress(Exception):
+            await page.evaluate(REPORT)
+
+    for page in list(context.pages):
+        await attach(page)
+
+    #: A surface opened after recording started is one the person chose to open, which is
+    #: the ordinary case in a task that spans tools.
+    context.on("page", lambda page: asyncio.get_running_loop().create_task(attach(page)))
 
 
 async def drain(page: Any) -> Watched:

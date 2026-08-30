@@ -50,6 +50,8 @@ class Step(BaseModel):
     #: not the task -- somebody who said "watch this" still answers a message -- and
     #: treating those as mandatory is how a workflow fails on the first row that is normal.
     optional: bool = False
+    #: Which surface to do it on. Empty means wherever the driver already is.
+    surface: str = ""
 
     def wants(self, row: Mapping[str, str]) -> str:
         """What to write for this row."""

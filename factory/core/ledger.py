@@ -32,6 +32,9 @@ class Act(BaseModel):
     doing: Doing
     target: Target | None = None
     value: str = ""
+    #: The surface this happened on, as its origin. A real task spans several, and an act
+    #: that does not say which is an act a replay cannot place.
+    surface: str = ""
     at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     #: Where the act landed, so a later reader can ask the page about the same point.
     where: tuple[float, float] | None = None

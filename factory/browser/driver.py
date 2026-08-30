@@ -52,6 +52,29 @@ class Browser:
     def cdp(self) -> Any:
         return self._at.cdp
 
+    async def on(self, want: str) -> bool:
+        """Act on the surface an act was demonstrated on. True if we are there.
+
+        A REPLAY IS NOT THE AFTERNOON IT WAS RECORDED ON. Tabs get reordered, closed and
+        reopened, so a surface is found by its origin rather than by an index -- and zero
+        or two matches is a refusal, because typing into somebody else's tab looks exactly
+        like working until it does not.
+        """
+        from factory.browser import surface as surfaces
+
+        if not want or surfaces.of(self._at.page.url) == want:
+            return True
+        page = surfaces.among(list(self._at.context.pages), want)
+        if page is None:
+            return False
+        await page.bring_to_front()
+        self._at.page = page
+        self._at.cdp = await self._at.context.new_cdp_session(page)
+        #: Each surface has its own connection, so the evidence channel follows the acting.
+        await self._at.cdp.send("Network.enable", {})
+        self.bodies.watch(self._at.cdp)
+        return True
+
     async def _document(self) -> int:
         """The current document's node id. Asked every time: ids do not survive a navigation."""
         got = await self.cdp.send("DOM.getDocument", {"depth": -1})
@@ -191,7 +214,7 @@ class Browser:
         """
         from factory.browser import record
 
-        await record.acts(self._at.page, self.cdp, into)
+        await record.acts(self._at.context, into)
 
     async def watched(self) -> Any:
         """What the recorder saw of the pointer and the keyboard, and empties it."""

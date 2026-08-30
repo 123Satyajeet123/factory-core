@@ -23,19 +23,22 @@ from factory.browser.driver import Browser
 from factory.core.ledger import Act
 
 HERE = Path(__file__).parent / "fixtures"
-SITE, CDP_PORT = 8087, 9349
+#: TWO PORTS, BECAUSE TWO PAGES ON ONE ORIGIN ARE ONE SURFACE. A first version served both
+#: fixtures from one port, `on()` correctly saw it was already there, and the eval blamed
+#: the driver for not switching to where it already was.
+SITE, OTHER, CDP_PORT = 8087, 8085, 9349
 
 
-def serve() -> http.server.ThreadingHTTPServer:
+def serve(port: int) -> http.server.ThreadingHTTPServer:
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(HERE))
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", SITE), handler)
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
 
 
 async def run() -> int:
     home = Path(tempfile.mkdtemp(prefix="factory-tabs-"))
-    httpd = serve()
+    httpd, elsewhere_httpd = serve(SITE), serve(OTHER)
     proc = profile.launch(home / "profile", CDP_PORT)
     faults = 0
     try:
@@ -58,7 +61,7 @@ async def run() -> int:
 
         #: A person opening a second surface, the way five tabs happen.
         second = await context.new_page()
-        await second.goto(f"http://127.0.0.1:{SITE}/form.html")
+        await second.goto(f"http://127.0.0.1:{OTHER}/form.html")
         await asyncio.sleep(0.6)
         print(f"after the person opens one:   {len(context.pages)}")
 
@@ -83,13 +86,33 @@ async def run() -> int:
         if on_second == 0:
             faults += 1
             print("\nFAULT acts on a second surface are not recorded at all")
-        if len(context.pages) > 1 and browser._at.page is context.pages[0]:
-            print("      and the driver is still bound to the first page it was given")
+        if not all(a.surface for a in seen):
+            faults += 1
+            print("FAULT an act was recorded without saying which surface it was on")
+
+        #: RECORDING IS HALF OF IT. A replay has to go back to the surface an act was
+        #: demonstrated on, and find it by what it is rather than by where it was.
+        from factory.browser import surface as surfaces
+        elsewhere = surfaces.of(second.url)
+        went = await browser.on(elsewhere)
+        did = await browser.click(Target(role="button", name="Save"))
+        print(f"\nswitched to {elsewhere}: {went}, then acted: ok={did.ok} "
+              f"delivery={did.delivery}")
+        if not went or not did.ok:
+            faults += 1
+            print("FAULT the driver cannot act on a surface it was not started on")
+
+        gone = await browser.on("https://nowhere.invalid")
+        print(f"a surface no tab shows: {gone} (must be False)")
+        if gone:
+            faults += 1
+            print("FAULT the driver claimed a surface that is not open")
 
         await browser.close()
     finally:
         proc.terminate()
         httpd.shutdown()
+        elsewhere_httpd.shutdown()
         shutil.rmtree(home, ignore_errors=True)
 
     print(f"\nFAULTS  surfaces a demonstration would lose : {faults}")

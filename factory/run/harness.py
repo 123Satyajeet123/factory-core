@@ -26,6 +26,9 @@ from factory.core.workflow import Step, Workflow
 
 async def one_step(browser: Any, step: Step, row: Mapping[str, str]) -> Did:
     """Do one step, on one row. The driver owns the guard, the hand and the reading."""
+    if step.surface and not await browser.on(step.surface):
+        return Did(ok=False, delivery=Delivery.NOT_PROBED,
+                   detail=f"no single tab showing {step.surface}")
     if step.doing is Doing.GO:
         return await browser.go(step.wants(row) or step.value)
 
@@ -45,8 +48,37 @@ async def one_step(browser: Any, step: Step, row: Mapping[str, str]) -> Did:
     return await browser.type(step.wants(row))
 
 
+def supplied(workflow: Workflow, row: Mapping[str, str],
+             authority: Any = None) -> tuple[dict[str, str], Question | None]:
+    """The row as the workflow needs to read it, or the question standing in the way.
+
+    A parameter no column is named for is not a broken row. It is the one thing nobody has
+    decided: which column supplies it. Asked per parameter, so the answer is reusable --
+    keyed on `<workflow>.<param>`, a person answers once and every later row of every later
+    run reads the same column without asking.
+
+    With no authority, or with nobody answering, the question comes back and the caller
+    refuses. That is what it would have done anyway, and now the reason is answerable.
+    """
+    missing = workflow.missing_from(row)
+    if not missing:
+        return dict(row), None
+
+    reading = dict(row)
+    for param in missing:
+        question = Question(
+            kind=Ask.PARAM, about=f"{workflow.name}.{param}",
+            because=f"no column of the row is named {param}",
+            candidates=tuple(sorted(row)))
+        column = authority.ask(question) if authority is not None else None
+        if not column or column not in row:
+            return reading, question
+        reading[param] = row[column]
+    return reading, None
+
+
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
-               *, witness: Any = None) -> Run:
+               *, witness: Any = None, authority: Any = None) -> Run:
     """The whole workflow, over every row. Stops a row at its first failing step."""
     run = Run(workflow=workflow.name)
 
@@ -55,13 +87,11 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
             #: Every act inside a row is paced; the rows themselves were not, so a hundred
             #: of them arrived at the pace of a single act however human each one looked.
             await browser.next_row()
-        missing = workflow.missing_from(row)
-        if missing:
-            run.rows.append(RowRun(row=dict(row), refused=Question(
-                kind=Ask.TARGET, about=workflow.name,
-                because=f"the row supplies no {', '.join(missing)}",
-                candidates=tuple(sorted(row)))))
+        reading, refused = supplied(workflow, row, authority)
+        if refused is not None:
+            run.rows.append(RowRun(row=dict(row), refused=refused))
             continue
+        row = reading
 
         done = RowRun(row=dict(row))
         for step in workflow.steps:

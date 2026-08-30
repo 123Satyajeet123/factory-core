@@ -42,7 +42,10 @@ def _anchor(act: Act) -> Any:
         click_point=(int(x), int(y)),
         structural=StructuralLocator(
             role=act.target.role if act.target else None,
-            name=act.target.name if act.target else None),
+            name=act.target.name if act.target else None,
+            #: Which surface, in the field that already means it. Their world calls it a
+            #: window; a browser calls it a tab, and both are "not the one you are on".
+            window_name=act.surface or None),
     )
 
 
@@ -151,6 +154,7 @@ def workflow_of(induced: Any, name: str) -> Workflow:
             target=Target(role=(where.role or "") if where else "",
                           name=(where.name or "") if where else ""),
             value=their.text or "", param=their.param or "",
+            surface=(where.window_name or "") if where else "",
             optional=getattr(guard, "on_unmet", None) == "skip"))
     return Workflow(name=name, steps=steps,
                     params=tuple(getattr(induced, "param_specs", {}) or ()))

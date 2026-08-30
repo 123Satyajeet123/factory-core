@@ -92,6 +92,38 @@ were missing.
 recorded today would be wrong in a way the compiler cannot see, and the induced program
 would be confidently short.
 
+### P1 closed the same day, by execution
+
+    acts recorded on the first surface:  1
+    acts recorded on the second surface: 1
+       press  button 'target'      on one origin
+       press  button 'Save'        on another
+    switched to http://127.0.0.1:8085: True, then acted: ok=True delivery=target_hit
+    a surface no tab shows: False
+    FAULTS 0
+
+Three things had to change and none of them is a tab index.
+
+**A surface is its ORIGIN, and it is recorded rather than written.** `scheme://host` comes
+off the page the person was using, the way `Target.role` does. A tab index is a fact about
+one afternoon; tabs are reordered, closed and reopened between a demonstration and a replay.
+
+**The recorder attaches to every page, and to every page opened later.** A person opening a
+tool mid-task is the ordinary case, not an edge.
+
+**Zero or two matching tabs is a refusal**, for the same reason `locate` refuses on both:
+typing into somebody else's tab looks exactly like working until it does not.
+
+The surface survives induction through `StructuralLocator.window_name` -- their word for
+which window, which is what a tab is -- and `run/harness` moves the driver before a step
+that names one.
+
+**A fixture bug on the way, worth recording because it looked like a driver bug.** Both
+fixtures were first served from one port. Two pages on one origin are ONE surface, `on()`
+correctly saw it was already there, and the eval blamed the driver for not switching to
+where it already was. Two ports, two origins, and the failure went away -- which is also a
+real limitation: two apps on the same host would be one surface to this code.
+
 ## Result
 
 (filled in after a demonstration — not before)
