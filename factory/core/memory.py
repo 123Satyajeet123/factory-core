@@ -26,6 +26,10 @@ class Kind(StrEnum):
     """What a thing known ABOUT is. One value per question somebody can answer."""
 
     PACE = "pace"
+    #: A person's consent to an irreversible effect, with a budget. Held here because a
+    #: permit is a thing known at a scope, and the tiers, the store and the scope chain
+    #: already exist -- a second store for consent would be a second thing to keep true.
+    PERMIT = "permit"
     TARGET = "target"
     SOURCE = "source"
 

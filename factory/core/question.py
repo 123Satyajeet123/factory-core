@@ -19,6 +19,11 @@ class Ask(StrEnum):
     """
 
     TARGET = "target"
+    PERMIT = "permit"
+    #: A workflow parameter no column of the row is named for. The answer is the column
+    #: that supplies it, which `run/harness.py` then reads the row through -- so a
+    #: spreadsheet nobody wrote code for becomes usable without a line of code for it.
+    PARAM = "param"
 
 
 class Question(BaseModel):

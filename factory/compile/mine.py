@@ -114,3 +114,15 @@ def _self_check() -> None:
 
 if __name__ == "__main__":
     _self_check()
+
+
+def irreversible(mining: Any) -> bool:
+    """Whether the compiler judged this effect impossible to undo.
+
+    Theirs, not ours. `Effect.risk` is assessed at compile time from the demonstration, and
+    `needs_operator_confirmation` is their flag for an effect a person should see first.
+    Re-deciding it here would be a second mechanism, and ours would be a list of verbs.
+    """
+    return any(getattr(effect, "risk", "") == "irreversible"
+               or getattr(effect, "needs_operator_confirmation", False)
+               for effect in getattr(mining, "effects", ()) or ())

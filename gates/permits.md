@@ -73,6 +73,45 @@ If that holds, the split is: risk is theirs, consent is ours, and nothing is ass
 - Take the risk assessment from wherever it already exists. Write only the consent record.
 - If no candidate is adopted, say "searched, none fit" with what each lost on.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    no permit           acts=0  rows refused=3   asks: "send it -- button 'Send'"
+    nowhere to hold one acts=0
+    granted 2 of 3      acts=2  refused=1  left=0
+    revoked after one   acts=1
+    expired permit      good=False (with 9 unspent)
+    another workflow's  acts=0
+    FAULTS 0
+
+Measured at a stand-in driver that counts what it was asked to do, so "the act did not
+happen" is observed rather than inferred from a verdict.
+
+**A1 is the vendor's, and it was already there.** `Effect.risk` defaults to `'reversible'`
+and `needs_operator_confirmation` is a field, both assessed at compile time from the
+demonstration. `compile/mine.irreversible` reads them. Nothing in our source names an
+action, so `evals/agnostic` still passes -- a list of dangerous verbs would have been site
+knowledge wearing a safety hat.
+
+**A2 decided it, exactly as predicted.** casbin's whole `Enforcer` surface has nothing that
+depletes a grant -- no budget, quota, consume, remaining, limit or expire -- and `oso` ships
+no wheel for this interpreter at all. A policy engine answers allow/deny against a rule
+somebody wrote; it holds no consent that is used up. So the budget would have been ours
+anyway and the engine would have answered the easy half.
+
+**A3, A6 and A7 hold.** No permit means no act, checked in `run/harness.py` before the
+driver is called -- not a tool a model may call, not a field it may set. With nowhere to
+hold a permit, nothing happens: an unattended run cannot grant itself permission.
+
+**The split is what the prediction said: risk is theirs, consent is ours, nothing is
+assessed twice.**
+
+## What this does not do
+
+Nothing yet ASKS. `authority/question.py` grew an `Authority` with an `Asks` seam while this
+was being written, and the harness now takes both -- `memory` holds a permit, `authority`
+asks for one -- but the asking is not wired to the refusal. Today a run refuses and records
+the question; it does not offer it to anybody.
+
+The budget is per step, not per row. Nine sends of one step spend one permit nine times,
+which is the useful unit; a permit that had to be granted per row would be granted by
+reflex, which is not consent.

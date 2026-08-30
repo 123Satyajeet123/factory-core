@@ -52,6 +52,10 @@ class Step(BaseModel):
     optional: bool = False
     #: Which surface to do it on. Empty means wherever the driver already is.
     surface: str = ""
+    #: Whether doing this cannot be undone. NOT DECIDED HERE: it comes from what the
+    #: compiler established about the effect from the demonstration. A list of dangerous
+    #: verbs in our source would be site knowledge wearing a safety hat.
+    irreversible: bool = False
 
     def wants(self, row: Mapping[str, str]) -> str:
         """What to write for this row."""

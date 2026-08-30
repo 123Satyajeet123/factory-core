@@ -35,7 +35,14 @@ HOST = re.compile(r"\bhttps?://(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.[a-z]{2,}"
 SELECTOR = re.compile(r"""(["'])\s*(?:\#[A-Za-z][\w-]*[\w .\#>:\[\]=-]*|//[a-z]+\[)\1""")
 
 #: A name a person would recognise as a product rather than as a mechanism.
-NAMED = re.compile(r"\b(apollo|gmail|sheets|linkedin|salesforce|hubspot|notion)\b", re.I)
+#:
+#: ONLY NAMES THAT ARE NOT ALSO ENGLISH. `notion` and `sheets` were here and both are
+#: ordinary words -- "no notion of a grant" tripped it, which is the fourth time this file
+#: has flagged itself. A rule that fires on prose is a rule somebody disables.
+#:
+#: KNOWN BLIND SPOT: a destination whose name is a common word is not caught by this line.
+#: The host and selector patterns still are, and those are what a workflow actually needs.
+NAMED = re.compile(r"\b(gmail|linkedin|salesforce|hubspot)\b", re.I)
 
 #: Vendor URLs in a docstring are provenance, not knowledge. A line that only cites where
 #: an idea came from is allowed to name a repository.

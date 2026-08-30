@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from factory.authority import permit as permits
 from factory.core.evidence import Delivery, Did, RowRun, Run, StepRun
 from factory.core.question import Ask, Question
 from factory.core.verbs import Doing
@@ -78,8 +79,18 @@ def supplied(workflow: Workflow, row: Mapping[str, str],
 
 
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
-               *, witness: Any = None, authority: Any = None) -> Run:
-    """The whole workflow, over every row. Stops a row at its first failing step."""
+               *, witness: Any = None, memory: Any = None,
+               authority: Any = None) -> Run:
+    """The whole workflow, over every row. Stops a row at its first failing step.
+
+    THREE SEAMS DOING THREE JOBS. `witness` judges what happened, `memory` HOLDS a permit,
+    `authority` ASKS for one. Collapsing the last two would make a store answer questions
+    or an answerer keep records, and neither is what either is.
+
+    AN IRREVERSIBLE STEP IS CHECKED HERE, BEFORE THE DRIVER SEES IT. A permit is not a tool
+    a model may call and not a field it may set. With nowhere to hold one, there is no
+    permit and the answer is no: an unattended run cannot grant itself permission.
+    """
     run = Run(workflow=workflow.name)
 
     for index, row in enumerate(rows):
@@ -100,6 +111,13 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
             #: normal, which is the majority of them.
             if step.optional and step.target is not None and not await browser.find(step.target):
                 continue
+            if step.irreversible:
+                spent = (permits.spend(memory, step, workflow.name)
+                         if memory is not None else None)
+                if spent is None:
+                    done.refused = permits.asked_for(step, workflow.name)
+                    break
+
             did = await one_step(browser, step, row)
             receipt = None
             if step.contract is not None and witness is not None:
