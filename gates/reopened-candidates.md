@@ -26,6 +26,23 @@ needs establishing is which parts would be linked and what that obliges.
 C1 and C4 is worth an extend even if it loses the rest. If overlap turns out thinner
 than claimed, shrink the claim rather than defend the evaluation.
 
-## Result
+## Result — NOT RUN, and the reason is a decision rather than an oversight
 
-(filled in after execution)
+`gates/browser-spine.md` answered the spine question by execution: five candidates measured,
+Playwright adopted for attach, transport, lifecycle and bodies, with resolution and dispatch
+on raw CDP. That decision is working — the guard suite passes with SAFETY 0, controls inside
+frames resolve, and the driver carries no seam file.
+
+Re-running Stagehand and Skyvern against C1–C6 would cost a day and could only change
+something if the current spine were failing at one of them. It is not.
+
+**So this stays open rather than closed, and what would re-open it is named:** a criterion
+the current spine loses. If `witness/coverage.py` starts reporting a shape of surface the
+CDP path cannot address, or if resolution costs become the thing limiting a run, the
+criteria above are already fixed and the survey is a day's work rather than a fresh
+argument.
+
+**What is NOT a reason to re-open it:** that these two are well regarded. That was the
+original error — Stagehand was excluded for being TypeScript and Skyvern for its licence,
+both procedural rather than technical, and the correction was to write the criteria down.
+The criteria are written. Nothing obliges us to spend them.

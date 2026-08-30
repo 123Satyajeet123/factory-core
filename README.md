@@ -67,6 +67,17 @@ Where we deliberately do not use a vendor call, the file says which call and why
 Standard tooling throughout: pydantic for types, ruff, pytest, structlog, OTLP. No bespoke
 framework, and no abstraction with one implementation.
 
+## Using it
+
+    uv run factory demonstrate "outreach"   # do the task yourself; it records what you did
+    uv run factory demonstrate "outreach"   # again, on different inputs
+    uv run factory compile "outreach"       # two demonstrations become a program
+
+Two, because one demonstration cannot tell what varies from what is fixed. A demonstration
+containing things that are not the task is ordinary — an aside becomes an optional step with
+a guard, and a divergence the compiler cannot explain is refused as a question rather than
+guessed.
+
 ## Loop
 
     ledger → compile → workflow → run → receipt → memory → compile
@@ -74,7 +85,35 @@ framework, and no abstraction with one implementation.
 Evidence is the only upward flow, and everything that makes the system cheaper travels
 on it.
 
-## Three rules
+## The ladder, which is where the cheapness comes from
+
+Resolving which control a step means, in the order the answers cost:
+
+    structural   free      what the demonstration recorded, still there
+    chosen       a model   which of these is the one that was meant
+    asked        a person  neither could tell
+    remembered   free      either of the above, on every run after
+
+Both expensive rungs end in the cheap one. A model's answer and a person's are kept the same
+way — as a role and a name, which is what the free rung already searches by — so the run
+after either costs nothing. That is the only reason asking is cheaper than a hardcoded
+answer rather than more expensive.
+
+A remembered resolution that no longer resolves descends again rather than failing, and
+widens its scope only on witness receipts.
+
+## What stops a run, and what it is not allowed to do
+
+    a cap        code's, frozen, and nothing inside a run may raise it
+    a goal       the work's: enough, declared once and checked per row by code
+    a refutation something irreversible did not land — stops immediately
+    grinding     rows that produce no receipt at all, one after another
+
+An irreversible step does nothing without a permit, and a permit is consent with a budget
+that gets spent. No permit means the act does not happen, and with nowhere to hold one there
+is no permit: an unattended run cannot grant itself permission.
+
+## Five rules
 
 1. `core/` imports no driver; drivers import `core/` types.
 2. Every driver is replaceable behind its `driver.py` — which is what makes six

@@ -154,3 +154,30 @@ is real money on someone's account, and it is not spent without being asked.
 **Not adopted, not rejected, and deliberately not guessed.** The blind prediction above
 stands unmeasured. Nothing in `model/` should be written against it until this section
 carries numbers, because a driver built to a prediction is the prediction made permanent.
+
+
+## Free first — the operator's direction, 2026-08-30
+
+Paid providers are not the priority. The model rung should reach for what costs nothing
+before it reaches for what does, and a run that cannot afford an answer should fall to the
+question rail rather than to a bill.
+
+**This does NOT unblock the gate, and it changes what the gate must measure.** Two things
+follow, and both were already established here:
+
+**A price table cannot decide which model is free.** `litellm.model_cost` has 3,364 entries,
+and the case it gets wrong is on record: a provider publishing `$0.0000008/token` while
+serving the model free under an allowance. A table reports a price nobody paid. So
+`model/catalogue.py` asks each provider what it serves and `model/budget.py` counts what was
+actually spent -- neither reads the table, and "free" is an observation rather than a field.
+
+**Cheap and conforming are different questions.** D1 measures whether a schema comes back
+intact, and a free model that returns prose is not cheaper than a paid one that returns the
+schema -- it is a refusal that took a round trip. `model/conform.py` runs the same matrix
+against whatever is offered, and a provider failing a schema is not offered work needing it,
+whatever it costs.
+
+**Still blocked on the same thing.** Free providers need credentials too. Nothing here can
+be measured without one, and building the rung unmeasured is what this gate's own Result
+warns about: the tree is already provisioned for the conclusion, and adopting on that would
+make the survey impossible rather than merely undone.
