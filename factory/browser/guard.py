@@ -26,10 +26,14 @@ _REFUSALS = {
 
 
 async def press(cdp: Any, session_id: str, backend_node_id: int, *,
-                hand: Hand | None = None, fx: float = 0.5, fy: float = 0.5,
-                button: str = "left") -> Landed:
-    """Travel to the target, re-measure there, and send nothing if the answer is no."""
+                hand: Hand | None = None, button: str = "left") -> Landed:
+    """Travel to the target, re-measure there, and send nothing if the answer is no.
+
+    Where in the target to land is the hand's to choose. A constant centre was the default
+    and is a tell on its own: two clicks on the same control land on the same pixel.
+    """
     hand = hand or Hand()
+    fx, fy = hand.aim()
 
     resolved = await cdp.send.DOM.resolveNode(
         params={"backendNodeId": backend_node_id}, session_id=session_id)

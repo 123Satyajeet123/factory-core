@@ -37,6 +37,30 @@ That this defeats any particular detector. Nothing here is measured against a li
 and a pass is "input has the shape of a hand", never "we are undetectable". A claim about
 a real site needs a measurement against a real site, and this is not one.
 
-## Result
+## Result — 2026-08-30
 
-(filled in by execution — not by reasoning)
+**H1 the pointer travels.** Yes, and the page counts it: 70 moves before a refusal on the
+overlay case, 34 on the hover case, 18 on the off-viewport case. Zero moves appear only
+where the target had no box to travel to, which is a refusal before travel rather than a
+press without it.
+
+**H2 the pointer arrives before it is measured.** Confirmed by the case built for it. The
+skittish target moves away on `mouseover`; the guard travels, re-measures, finds `HTML`
+under the point and sends nothing. Measuring before travelling would have approved it.
+
+**H3 one point, three uses.** By construction: `hit.where` produces the point, and travel,
+`hit.at_point` and dispatch all take that same value. There is no second computation to
+disagree.
+
+**H4 timing is drawn.** 400 draws, all distinct, and the mean sits above the median — the
+defining property of the log-normal, where a uniform draw has them equal.
+
+**H5 reproducible when seeded.** Same seed, same delays and same aim points.
+
+**M3, which was not in this gate and should have been.** Every press used to land on the
+exact pixel centre of its target. `Hand.aim` now draws the landing point, and the run
+reports 20 distinct points out of 20.
+
+**What this does not show.** No press was dispatched in the run, because the only case that
+should have dispatched failed at locate. So the travel numbers are all from refusals. The
+shape of a press that actually lands is still unmeasured.

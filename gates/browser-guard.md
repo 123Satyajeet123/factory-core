@@ -87,3 +87,47 @@ no point on it is computable and the guard refuses. Targeting its painted label 
 CDP round-trips, so a window exists between measuring and pressing. chrome-agent measures
 and dispatches in one place; this does not. Nothing in these fixtures closes that window,
 and no result here should be read as if it did.
+
+
+## Result — 2026-08-30, second run, driven through `browser/machine.py`
+
+    ok   F1 impostor swap       off_target   acted=False moves=0   no box
+    ok   F2 consent overlay     intercepted  acted=False moves=70  covered DIV
+    FAIL F3 label for input     not_probed   acted=False moves=0   no match
+    ok   F4 off viewport        off_target   acted=False moves=18  outside
+    ok   H2 leaves on hover     intercepted  acted=False moves=34  covered HTML
+    ok   F5 boxless input       not_probed   acted=False moves=0   no match
+
+    SAFETY 0   LIVENESS 1   SHAPE 0   M3 aim points 20/20 distinct
+
+**H2 now refuses, which confirms the fix.** The earlier run dispatched on it because the
+rule contained `at.contains(this)` — always true when `elementFromPoint` returns `<body>` —
+so an element that had moved away was approved. With that gone it reports `covered HTML`
+and sends nothing.
+
+**SAFETY 0 AND SHAPE 0 ARE BOTH VACUOUS IN THIS RUN, and that is the finding.** F3 was the
+only case expected to dispatch, and it failed before the guard was reached. Nothing was
+dispatched at all, so "nothing was dispatched wrongly" and "every dispatch travelled" are
+statements about an empty set. A guard that is only ever asked to refuse has not been shown
+to allow anything.
+
+**F3 fails at LOCATE, not at the guard.** The vendor's serialisation of this page offers
+four interactive elements:
+
+    BUTTON role=button    name='target'
+    LABEL  role=LabelText name=''
+    LABEL  role=LabelText name=''
+    BUTTON role=button    name='skittish'
+
+The `<input>` behind the painted label is not in it, and the labels carry no accessible
+name. So a control a person clicks without thinking cannot be addressed by role and name at
+all. That is a perception limit, and no amount of guard work reaches it.
+
+**file:// does not navigate.** `Page.navigate` to a file URL leaves the tab on
+`about:blank`, and `location.href` reads correct for an instant before it bounces back — so
+`go` reported success against a page that never loaded. Fixtures are served over http now,
+which is what a real destination does anyway.
+
+**`Page.navigate` is acked before the document exists.** The call returned and the very
+next `see()` found zero elements on a page with eleven. `go` now waits for
+`document.readyState`, and that wait is part of the driver rather than of each caller.

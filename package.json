@@ -1,0 +1,11 @@
+{
+  "name": "factory-motion",
+  "private": true,
+  "description": "Node dependencies. Only the pointer-path geometry lives here; see gates/pointer-motion.md.",
+  "dependencies": {
+    "ghost-cursor": "^1.4.2"
+  },
+  "devDependencies": {
+    "@fingerprintjs/botd": "^2.0.0"
+  }
+}

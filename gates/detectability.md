@@ -10,26 +10,38 @@ below runs against a detector built to be measured against.
 A pass on any of these means "our driving has the shape these tests look for". It never
 means undetectable, and no result here may be quoted as if it did.
 
-## Targets, verified 2026-08-30 via the GitHub API
+## Targets, verified 2026-08-30 by request and by the GitHub API
+
+**Vendored, and the gate that actually runs:**
 
 | target | what it measures | licence | signal |
 |---|---|---|---|
-| **CreepJS** `abrahamjuliot/creepjs` | fingerprint entropy, and internal-consistency "lies" — a claimed property that does not match observed behaviour | MIT | 2,490 stars, pushed 2026-06-11 |
-| **rebrowser-bot-detector** `rebrowser/rebrowser-bot-detector` | runtime leaks specific to CDP-driven browsers — the class our attach could produce | **NONE stated** | 158 stars, pushed 2024-10-25 |
-| `bot.sannysoft.com` | the classic headless battery | hosted | — |
+| **BotD** `fingerprintjs/BotD` | a typed automation verdict, computed in the page, no server | MIT | 1,457 stars, pushed 2026-08-11, npm v2.0.0 |
+| **CreepJS** `abrahamjuliot/creepjs` | fingerprint entropy, and internal-consistency "lies" | MIT | 2,490 stars, pushed 2026-06-11 |
 
-**CreepJS is the primary and can be vendored.** MIT, current, and it tests the thing this
-project's stealth argument rests on: consistency. Our claim is that we inject nothing, so
-there is nothing to be inconsistent about; that claim is exactly what CreepJS is built to
-falsify.
+**BotD is the primary because it is a library rather than a page.** It returns a verdict we
+can assert on, offline, with no third party's uptime in the loop. CreepJS is the deeper
+audit and is read rather than asserted: it tests *consistency*, which is exactly what this
+project's "inject nothing" claim rests on.
 
-**rebrowser-bot-detector states no licence, so it is not vendored.** No licence means no
-grant to copy or redistribute. It is used at its hosted address, read and never shipped.
-Its value is that it targets CDP leaks specifically rather than headless-ness.
+**Hosted, read and never shipped:**
 
-**Cloudflare cannot be self-hosted.** A challenge only exists on a protected origin. If a
-Cloudflare measurement is wanted it needs a page we control behind our own Cloudflare
-account — a real one, deliberately provisioned — and not somebody else's login wall.
+| target | status | fronted by | why |
+|---|---|---|---|
+| `nowsecure.nl` | 200 | Cloudflare (`cf-ray` present) | a real Cloudflare challenge |
+| `bot.sannysoft.com` | 200 | Cloudflare | the classic fingerprint table |
+| `browserscan.net/bot-detection` | 200 | — | second opinion |
+| `deviceandbrowserinfo.com/are_you_a_bot` | 200 | nginx | second opinion |
+| `rebrowser-bot-detector` | hosted | — | CDP-specific leaks. **No licence stated**, so never vendored |
+| `arh.antoinevastel.com/bots/areyouheadless` | **502, dead** | nginx | do not bother |
+
+`niespodd/browser-fingerprinting` (5,129 stars, pushed 2026-07-27) is the reference for
+which protection catches what. Read, never imported.
+
+**Cloudflare is testable after all, and my earlier claim that it was not is withdrawn.**
+`nowsecure.nl` sits behind a real Cloudflare challenge and answers 200 to a plain request.
+It is somebody else's site, so it is used sparingly and never tuned against — the rule at
+the top applies to it exactly as it applies to Apollo.
 
 ## What is measured
 
