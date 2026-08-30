@@ -114,8 +114,10 @@ class Browser:
         chosen = locate.reads(every[picked])[2]
         if chosen is None:
             return found
+        role, name, _ = locate.reads(every[picked])
         return locate.Found(backend_node_id=chosen, rung="chosen",
-                            why=f"chose {offered[picked]}", among=offered)
+                            why=f"chose {offered[picked]}", among=offered,
+                            resolved=Target(role=role, name=name))
 
     async def go(self, url: str) -> Did:
         """Navigation, waited for and checked rather than assumed.

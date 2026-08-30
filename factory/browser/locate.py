@@ -34,6 +34,9 @@ class Found(BaseModel):
     why: str = ""
     among: dict[int, str] = Field(default_factory=dict)
     question: Question | None = None
+    #: What was actually resolved, in the vocabulary `locate` searches by. A node id is a
+    #: fact about one page load; this is what can be remembered and looked for again.
+    resolved: Target | None = None
 
     def __bool__(self) -> bool:
         return self.backend_node_id is not None
@@ -62,8 +65,9 @@ def settle(hits: list[dict[str, Any]], target: Target,
     """One match is an answer. Nothing else is."""
     live = [node for node in hits if not node.get("ignored")]
     if len(live) == 1 and reads(live[0])[2]:
-        return Found(backend_node_id=reads(live[0])[2], rung=rung,
-                     why="one match", among=among)
+        role, name, node = reads(live[0])
+        return Found(backend_node_id=node, rung=rung, why="one match", among=among,
+                     resolved=Target(role=role, name=name))
 
     why = "no match" if not live else f"{len(live)} matches"
     return Found(rung=rung, why=why, among=among,
