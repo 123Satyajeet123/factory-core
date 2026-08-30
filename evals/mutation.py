@@ -9,6 +9,14 @@ gate deleted**, which this tree has already shipped once and caught once by acci
 
 A mutation names the claim it should invalidate. If it survives, either the claim is untested
 or the mechanism was never load-bearing -- and both are findings, not noise.
+
+WHY NOT mutmut OR cosmic-ray, named so the drop is visible. Both mutate the AST -- flipping
+operators, altering constants -- generate thousands of mutants and report which survive a
+test suite. That answers "is this line covered". This answers "is this CLAIM checked": each
+mutation below is semantic, hand-chosen, and carries the sentence it should falsify, so a
+survivor names the untested claim rather than a line number. They are complements, not
+alternatives, and the reason ours exists is that a survivor here is readable. Adopting one
+of them later to find mutations nobody thought of would not replace this file.
 """
 
 from __future__ import annotations

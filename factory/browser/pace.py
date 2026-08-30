@@ -46,12 +46,14 @@ class Fitted(BaseModel):
 
 
 def _span(values: list[float]) -> tuple[float, float] | None:
-    """The middle half, in seconds. `Hand.draw` treats the midpoint as its median."""
+    """The middle half, in seconds. `Hand.draw` treats the midpoint as its median.
+
+    `statistics.quantiles` rather than indexing a sorted list at n//4: it interpolates
+    between the two neighbouring points, which is what a quartile is.
+    """
     if len(values) < ENOUGH:
         return None
-    ordered = sorted(values)
-    low = ordered[len(ordered) // 4] / 1000
-    high = ordered[(3 * len(ordered)) // 4] / 1000
+    low, _, high = (q / 1000 for q in statistics.quantiles(values, n=4))
     return (low, high) if high > low > 0 else None
 
 
@@ -74,18 +76,20 @@ def _bursts(moves: list[tuple[float, float, float]]) -> list[tuple[float, float]
 
 
 def _fitts(bursts: list[tuple[float, float]], width: float) -> tuple[float, float] | None:
-    """Least squares on time = base + scale * log2(1 + distance / width). Seconds."""
+    """Least squares on time = base + scale * log2(1 + distance / width). Seconds.
+
+    `statistics.linear_regression` is this, and hand-writing it agreed with the stdlib to
+    zero -- which is luck rather than a reason. See gates/learned-pace.md.
+    """
     if len(bursts) < ENOUGH:
         return None
     xs = [math.log2(1 + distance / width) for distance, _ in bursts]
     ys = [ms / 1000 for _, ms in bursts]
-    mean_x, mean_y = statistics.fmean(xs), statistics.fmean(ys)
-    spread = sum((x - mean_x) ** 2 for x in xs)
-    if spread <= 0:
+    if len(set(xs)) < 2:
         return None
-    scale = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=True)) / spread
-    base = mean_y - scale * mean_x
-    return (base, scale) if base > 0 and scale > 0 else None
+    line = statistics.linear_regression(xs, ys)
+    return ((line.intercept, line.slope)
+            if line.intercept > 0 and line.slope > 0 else None)
 
 
 def _paired(presses: list[tuple[float, Any, Any]], releases: list[float]) -> list[float]:

@@ -25,6 +25,33 @@ positions and their timing, `keydown` intervals, the delay between arriving at a
 and pressing it. We are fitting to the same signal a detector reads, on the same channel,
 from the same person on the same computer. Nothing is being guessed at.
 
+## Candidates — added 2026-08-30, because this gate had none
+
+Written after the code, which is the wrong order and is why it is marked as a correction
+rather than presented as process. The job is two things: quantile spans from samples, and a
+two-parameter least-squares fit.
+
+`statistics` (stdlib) · `numpy.polyfit` · `scipy.stats` · `statsmodels` OLS ·
+`scikit-learn` LinearRegression.
+
+    quartile span   ours 0.2495,0.3684   statistics.quantiles 0.2494,0.3683
+    fitts fit       ours base=0.0899 scale=0.0447
+                    statistics.linear_regression base=0.0899 scale=0.0447
+                    difference 0.00e+00 / 0.00e+00
+
+**Both were stdlib functions, reimplemented.** `statistics.linear_regression` is the fit
+exactly, to zero difference; `statistics.quantiles` is the span, and interpolates between
+neighbouring points where indexing a sorted list at `n // 4` does not. The ladder's third
+rung -- *stdlib does it* -- was skipped, and the survey that would have caught it was never
+written.
+
+**Adopted: stdlib.** `pace.py` now calls both. numpy, scipy, statsmodels and sklearn are not
+adopted: each arrives with numpy at minimum, for two calls the standard library already
+answers.
+
+**Agreeing to zero is luck, not a reason.** The hand-written regression was correct. Nothing
+in this tree would have told us if it had not been.
+
 ## Criteria
 
 **P1 it fits from real events, not from a questionnaire.** Parameters are estimated from

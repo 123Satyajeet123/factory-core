@@ -70,6 +70,49 @@ Split by the job, because adopting per criterion means adopting per job.
 **Ranking evidence / the ladder itself** — no candidate identified. If the survey finds
 none, that is recorded as "searched, none found", never assumed.
 
+### The survey, run 2026-08-30 — late, and that is the finding
+
+**This section was written after the code, which is the violation this gate opens by
+naming.** Criteria and candidates were fixed first; then `judge`, `blind` and `ladder` were
+written without a single candidate being measured. Recorded here rather than quietly fixed,
+because a gate that accuses the README of declaring a vendor unmeasured and then does the
+same thing one section lower is worth less than no gate.
+
+Measured on the real types, candidates present but not installed into the project
+(`uv run --with deepdiff --with jsonschema`):
+
+    case                  want          ours          jsonschema    deepdiff
+    as recorded           confirmed     confirmed     confirmed     confirmed
+    value corrupted       refuted       refuted       refuted       refuted
+    field absent          refuted       refuted       refuted       refuted
+    field unreadable      unverifiable  unverifiable  unverifiable  unverifiable
+    nothing readable      unverifiable  unverifiable  unverifiable  unverifiable
+
+    wrong: ours 0, jsonschema 0, deepdiff 0
+
+**Correctness does not discriminate, so the decision is on what each costs.**
+
+**W3 is nobody's but ours, and that is structural.** Both candidates required the same
+prefix — `frozenset(contract.expects) - frozenset(reading.readable)` — because blindness is
+a property of the *reader*, not of the document. Neither library can see `readable`; it is
+not in the data they are handed. No amount of schema or diff reaches it.
+
+**My prediction about the disagreement half was wrong.** It is recorded in this gate that
+deepdiff would be "genuinely close" there. It is not: `DeepDiff` reports paths
+(`root['status']`) across two buckets (`values_changed`, `dictionary_item_removed`), so
+recovering field names for `Receipt.disagreed` costs a regex and a concatenation — four
+lines against one, for the same set. It is built to diff arbitrary nested structures; a
+contract is a flat dict of expected scalars.
+
+    disagreed set   ours ['owner','status'] correct  1 line
+                    deepdiff same set       correct  4 lines + a dependency
+
+**Adopted: none. Recorded as searched, not assumed.** `jsonschema` needs six adapter lines
+to express `const` per field and catch a `ValidationError`; `deepdiff` needs four to
+recover names it turned into paths; ours is a comprehension. A dependency that replaces one
+line and supplies none of W3 is principle 11's failure, and the candidates are named above
+so the drop is visible rather than silent.
+
 **Mining the effect a step should have had** — `openadapt_flow.compiler.effect_mining`,
 already a tier-1 vendor here, already produces effects from a state delta. Whether a
 witness contract can be derived from the same object is a question for this gate, because
