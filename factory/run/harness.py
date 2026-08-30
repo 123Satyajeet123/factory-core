@@ -23,30 +23,55 @@ from factory.core.evidence import Delivery, Did, RowRun, Run, StepRun
 from factory.core.question import Ask, Question
 from factory.core.verbs import Doing
 from factory.core.workflow import Step, Workflow
+from factory.run import select
 
 
-async def one_step(browser: Any, step: Step, row: Mapping[str, str]) -> Did:
-    """Do one step, on one row. The driver owns the guard, the hand and the reading."""
+async def one_step(browser: Any, step: Step, row: Mapping[str, str], *,
+                   chooser: Any = None, memory: Any = None,
+                   workflow: str = "", run: str = "") -> tuple[Did, str]:
+    """Do one step, on one row, and say which rung answered it.
+
+    RESOLUTION GOES THROUGH `run/select.py`, NOT STRAIGHT TO THE DRIVER. That is where a
+    remembered target is tried first and where a model's answer is kept, so calling the
+    driver directly is how a run stays exactly as expensive as the first one.
+
+    The rung comes back with the act because `core/evidence.StepRun` records it: without
+    that, a cheap answer and an expensive one are indistinguishable afterwards and nothing
+    can say whether this is getting cheaper.
+    """
     if step.surface and not await browser.on(step.surface):
         return Did(ok=False, delivery=Delivery.NOT_PROBED,
-                   detail=f"no single tab showing {step.surface}")
+                   detail=f"no single tab showing {step.surface}"), "none"
+
+    #: Verbs that resolve nothing. No rung was descended, so none was paid for.
     if step.doing is Doing.GO:
-        return await browser.go(step.wants(row) or step.value)
+        return await browser.go(step.wants(row) or step.value), "none"
+    if step.doing is Doing.SCROLL:
+        return await browser.scroll(float(step.wants(row) or step.value or 0)), "none"
+    if step.doing is Doing.ANSWER:
+        return await browser.answer(step.value, accept=step.wants(row) == "accept")
+
+    if step.doing is Doing.KEY:
+        return await browser.key(step.wants(row) or step.value), "none"
 
     if step.target is None:
-        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail="no target recorded")
+        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail="no target recorded"), "none"
+
+    found = await select.target_for(browser, step, chooser=chooser, memory=memory,
+                                    workflow=workflow, run=run)
+    if not found:
+        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why), found.rung
 
     if step.doing is Doing.PRESS:
-        return await browser.click(step.target)
+        return await browser.press(found), found.rung
+    if step.doing is Doing.SELECT:
+        return await browser.select(found, step.wants(row)), found.rung
 
-    found = await browser.find(step.target)
-    if not found:
-        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why)
     pressed = await browser.press(found)
     if not pressed.ok:
-        return pressed
+        return pressed, found.rung
     await browser.clear()
-    return await browser.type(step.wants(row))
+    return await browser.type(step.wants(row)), found.rung
 
 
 def supplied(workflow: Workflow, row: Mapping[str, str],
@@ -80,7 +105,7 @@ def supplied(workflow: Workflow, row: Mapping[str, str],
 
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
                *, witness: Any = None, memory: Any = None,
-               authority: Any = None) -> Run:
+               authority: Any = None, chooser: Any = None, run_id: str = "") -> Run:
     """The whole workflow, over every row. Stops a row at its first failing step.
 
     THREE SEAMS DOING THREE JOBS. `witness` judges what happened, `memory` HOLDS a permit,
@@ -118,13 +143,15 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
                     done.refused = permits.asked_for(step, workflow.name)
                     break
 
-            did = await one_step(browser, step, row)
+            did, rung = await one_step(browser, step, row, chooser=chooser, memory=memory,
+                                       workflow=workflow.name, run=run_id)
             receipt = None
             if step.contract is not None and witness is not None:
                 #: Bound to THIS row. A contract carrying the demonstration's value would
                 #: confirm every row against the record the demonstration wrote.
                 receipt = witness.witness(did, step.contract.for_row(row))
-            done.steps.append(StepRun(intent=step.intent, did=did, receipt=receipt))
+            done.steps.append(
+                StepRun(intent=step.intent, did=did, receipt=receipt, rung=rung))
             if not did.ok:
                 break
         run.rows.append(done)

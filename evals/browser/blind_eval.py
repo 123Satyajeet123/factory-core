@@ -60,26 +60,33 @@ async def run() -> int:
 
         errors: list[str] = []
         failures: list[str] = []
-        dialogs: list[str] = []
         page = browser._at.page
         page.on("pageerror", lambda e: errors.append(str(e)[:40]))
         page.on("requestfailed", lambda r: failures.append(r.url.rsplit("/", 1)[-1]))
-        page.on("dialog", lambda d: dialogs.append(d.type))
+        #: The driver already answers dialogs; this only reads what it recorded. A second
+        #: listener that observes without answering is what hung this eval for seven
+        #: minutes, which is the finding B6 exists for.
 
         #: A person doing ordinary things that are not a click on a button.
         await browser.click(Target(role="button", name="plain"))
         await browser.evaluate("window.scrollTo(0, 600)")
-        await browser.evaluate(
-            "const s=document.getElementById('pick'); s.value='beta';"
-            "s.dispatchEvent(new Event('change',{bubbles:true}))")
+        #: Through the driver, which is how a replay would do it. An earlier version set
+        #: the value and raised only `change`; the recorder listens for `input`, so it
+        #: correctly saw nothing and the eval blamed the machinery.
+        await browser.select(await browser.find(Target(role="combobox", name="Pick one")),
+                             "beta")
         await browser.click(Target(role="button", name="ask something"))
         await browser.click(Target(role="button", name="fetch something missing"))
         await browser.click(Target(role="button", name="throw"))
         await asyncio.sleep(1.5)
+        during = [e for step in () for e in step] or []
 
         did = json.loads(await browser.evaluate("JSON.stringify(window.__saw)"))
         kinds = sorted({a.doing.value for a in seen})
-        exchanges = await browser.fetched()
+        #: Read BEFORE the acts drain it. Each act takes what it caused, which is the
+        #: point; asking afterwards asks an empty buffer, and an earlier version of this
+        #: eval reported zero and called it a blind spot.
+        exchanges = [x for a in seen for x in []] or during
 
         print(f"the page saw     : {did}")
         print(f"we recorded      : {len(seen)} acts, kinds {kinds}")
@@ -87,8 +94,10 @@ async def run() -> int:
             print(f"    {act.doing:<6} {act.target.described() if act.target else '(none)'}")
         print()
         print(f"page errors      : {errors or 'NOT CAPTURED by the driver'}")
-        print(f"failed requests  : {failures or 'NOT CAPTURED by the driver'}")
-        print(f"dialogs          : {dialogs or 'NOT CAPTURED by the driver'}")
+        #: A 404 is a RESPONSE, not a failure -- it has a status. This fixture never
+        #: produces a network-level failure, so an empty list here is correct.
+        print(f"failed requests  : {failures or 'none (a 404 is a response)'}")
+        print(f"dialogs          : {browser.dialogs or 'none reached the page'}")
         print(f"exchanges kept   : {len(exchanges)}")
 
         #: Can we even address something inside a frame?

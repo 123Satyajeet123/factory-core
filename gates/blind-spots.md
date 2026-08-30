@@ -65,8 +65,41 @@ built, which is why none of them shows up as a failure.
 5. **B4 / B5** — a witness with a contract would still refute, so they degrade diagnosis
    rather than correctness.
 
-## Result
+## Result — all six closed, 2026-08-30
 
-The sweep is the result. Each of B1–B6 needs its own gate before it needs code, and B6
-should be first because it is the only one that changes what happens rather than what is
-known about it.
+    the page saw   : ['scroll', 'select:beta', 'scroll', 'dialog', 'fetch', 'throw']
+    we recorded    : press, scroll, scroll, press, key, press, press
+    page errors    : ['a page error']
+    dialogs        : ['go on?']
+    a control inside an iframe: one match
+
+**B1** `Doing` now has scroll, select, key and answer, the recorder reports them, and the
+harness performs them. A select is not typing: both raise `input`, and recording a pick as a
+write replays it by typing an option's text into a control with no text.
+
+**B2** `guard.press` scrolls a target into view before measuring. A no-op when it is already
+visible, and the hit test still runs afterwards, so scrolling cannot smuggle a press onto
+something that moved.
+
+**B3** `Accessibility.queryAXTree` takes a node, not a frame id, and a frame's content
+document has no node id registered until something pierces for it. `DOM.getDocument` with
+`pierce` does, and every document is asked. Two dead ends on the way, both recorded: a
+`frameId` argument the call rejects, and a `DOM.getFrameOwner` path whose node the query
+could not find.
+
+**B4** page errors are collected onto the act. **B5** so are failed requests -- and a 404 is
+a RESPONSE, not a failure, so a fixture that 404s correctly produces none.
+
+**B6, and the finding is sharper than the fix.** A dialog handler that only OBSERVES
+suppresses the default dismissal and blocks the page forever: measured on an eval of ours
+that hung a browser for seven minutes doing exactly that. And with a connection attached the
+person cannot answer either -- whatever we do is the answer. So the driver dismisses, which
+is the reversible choice, and records it loudly; `Doing.ANSWER` replays a demonstrated
+answer for the next dialog only. A standing "always accept" is not consent, it is the guard
+removed.
+
+## Three of these were my eval's fault, not the machinery's
+
+A select set by `dispatchEvent(new Event('change'))` raises no `input`, so the recorder
+correctly saw nothing. Exchanges read after the acts had already drained them reported zero.
+A 404 was called a failed request. Each looked like a blind spot and was a bad test.

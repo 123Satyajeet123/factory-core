@@ -12,6 +12,7 @@ travelling would approve a target the pointer then left.
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 from factory.browser.hand import Hand
@@ -40,6 +41,14 @@ async def press(cdp: Any, backend_node_id: int, *, hand: Hand | None = None,
     object_id = resolved.get("object", {}).get("objectId")
     if not object_id:
         return Landed(dispatched=False, delivery=Delivery.OFF_TARGET, why="unresolvable")
+
+    #: BRING IT INTO VIEW FIRST. Refusing an off-viewport target is right for a guard and
+    #: useless as a capability: a person scrolls to what they mean to press. This is a
+    #: no-op when the control is already visible, and the guard still measures afterwards,
+    #: so scrolling cannot smuggle a press onto something that moved.
+    with contextlib.suppress(Exception):
+        await cdp.send("DOM.scrollIntoViewIfNeeded", {"backendNodeId": backend_node_id})
+        await hand.settle()
 
     point = await where(cdp, object_id, fx, fy)
     if point is None:

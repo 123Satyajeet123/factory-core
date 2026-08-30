@@ -22,7 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from factory.browser import surface
+from factory.browser import locate, surface
+from factory.browser.bodies import Bodies
 from factory.core.ledger import Act, Doing
 from factory.core.workflow import Target
 
@@ -61,31 +62,51 @@ REPORT = """
   if (window.__factory_acts) return;
   window.__factory_acts = true;
   const say = (act) => { try { __factory_act(JSON.stringify(act)); } catch (e) {} };
+  const at = (el) => {
+    const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: 0, y: 0 };
+  };
 
-  // ONE WRITE PER FIELD, CARRYING WHAT IT ENDED UP HOLDING, and emitted before whatever
-  // act ends it. `change` was tried first and fires on BLUR, so the write landed after the
-  // press that moved focus away: the ledger held press, press, write for someone who typed
-  // before saving, and the induced program pressed Save on an empty field. Measured.
+  // ONE WRITE PER FIELD, CARRYING WHAT IT ENDED UP HOLDING, emitted before whatever act
+  // ends it. `change` fires on BLUR, so a write recorded there landed after the press that
+  // moved focus away and the induced program pressed Save on an empty field. Measured.
   let writing = null;
   const flush = () => { if (writing) { say(writing.act); writing = null; } };
 
   addEventListener('input', e => {
-    const r = e.target && e.target.getBoundingClientRect
-      ? e.target.getBoundingClientRect() : null;
-    if (!r || !('value' in e.target)) return;
-    if (writing && writing.on === e.target) {
-      writing.act.value = String(e.target.value);
+    const el = e.target;
+    if (!el || !('value' in el)) return;
+    // A SELECT IS NOT TYPING. Both raise `input`, and recording a pick as a write replays
+    // it by typing the option's text into a control that has no text.
+    if (el.tagName === 'SELECT') {
+      flush();
+      say({ doing: 'select', ...at(el), value: String(el.value) });
       return;
     }
+    if (writing && writing.on === el) { writing.act.value = String(el.value); return; }
     flush();
-    writing = { on: e.target, act: {
-      doing: 'write', x: r.left + r.width / 2, y: r.top + r.height / 2,
-      value: String(e.target.value) } };
+    writing = { on: el, act: { doing: 'write', ...at(el), value: String(el.value) } };
   }, true);
 
   addEventListener('mousedown', e => {
     flush();
     say({ doing: 'press', x: e.clientX, y: e.clientY });
+  }, true);
+
+  // KEYS THAT ARE NOT TEXT. A character is already a write; Tab, Enter and Escape are acts
+  // in their own right and a form filled by tabbing records nothing without this.
+  addEventListener('keydown', e => {
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) return;
+    say({ doing: 'key', ...at(e.target), value: e.key });
+  }, true);
+
+  // SCROLLING, COALESCED. One act per resting place rather than one per pixel: what
+  // matters is where they ended up, not the hundred events on the way.
+  let resting = null;
+  addEventListener('scroll', () => {
+    clearTimeout(resting);
+    resting = setTimeout(() => say({
+      doing: 'scroll', x: 0, y: 0, value: String(Math.round(window.scrollY)) }), 350);
   }, true);
 
   addEventListener('blur', flush, true);
@@ -149,6 +170,20 @@ async def _actionable(cdp: Any, node: int) -> int:
         return node
 
 
+async def _offered(cdp: Any) -> tuple[str, ...]:
+    """Everything the page was offering, described the way `locate` describes it.
+
+    ASKED WITH THE SAME FUNCTION REPLAY USES. Two describers would let a recorded
+    candidate set and a resolved one disagree, and the disagreement would look like the
+    page having changed.
+    """
+    try:
+        tree = await cdp.send("Accessibility.getFullAXTree", {})
+    except Exception:
+        return ()
+    return tuple(sorted(locate.offered(tree.get("nodes", [])).values()))
+
+
 async def _named(cdp: Any, x: float, y: float) -> Target | None:
     """What the page calls the control at that point, asked of the accessibility tree.
 
@@ -196,18 +231,42 @@ async def acts(context: Any, into: list[Act]) -> None:
         watching.add(page)
         cdp = await context.new_cdp_session(page)
         await cdp.send("Runtime.addBinding", {"name": ACTS})
+        #: ONE COLLECTOR PER SURFACE, THE SAME WAY ONE RECORDER PER SURFACE. A `Bodies`
+        #: reads request ids off the session that saw them, so a single one attached to
+        #: the first page would collect a fifth of a five-tab demonstration -- the defect
+        #: acts already had, in the half that carries the evidence.
+        kept = Bodies()
+        await cdp.send("Network.enable", {})
+        kept.watch(cdp)
 
         def reported(message: dict[str, Any]) -> None:
             if message.get("name") != ACTS:
                 return
             said = json.loads(message.get("payload") or "{}")
+            where = (said.get("x", 0), said.get("y", 0))
+
+            #: THE SLOT IS TAKEN NOW, THE DESCRIPTION ARRIVES LATER. Resolution is three
+            #: CDP round trips and appending when it finishes puts acts in COMPLETION
+            #: order: measured, a press and the press after it landed reversed, and
+            #: `compile/mine.events` reads a demonstration in list order. Two handlers
+            #: cannot interleave -- they run on the loop -- so the index is the order the
+            #: person acted in, whatever order the answers come back in.
+            slot = len(into)
+            into.append(Act(doing=Doing(said["doing"]),
+                            value=str(said.get("value", "")),
+                            surface=surface.of(page.url), where=where))
 
             async def resolve() -> None:
-                target = await _named(cdp, said.get("x", 0), said.get("y", 0))
-                into.append(Act(doing=Doing(said["doing"]), target=target,
-                                value=str(said.get("value", "")),
-                                surface=surface.of(page.url),
-                                where=(said.get("x"), said.get("y"))))
+                #: DRAINED FIRST, BEFORE ANYTHING IS ASKED OF THE PAGE. A response is
+                #: assigned to an act by when it arrived, so every round trip spent here
+                #: first is a window in which this act swallows its own effect -- and an
+                #: effect inside its own `sor_before` is a delta of nothing. That costs a
+                #: contract and never produces a wrong one, which is the direction this
+                #: has to fail in.
+                saw = await kept.drain(cdp)
+                target = await _named(cdp, *where)
+                into[slot] = into[slot].model_copy(update={
+                    "target": target, "saw": saw, "among": await _offered(cdp)})
 
             asyncio.get_running_loop().create_task(resolve())
 

@@ -14,6 +14,8 @@ locator returns a handle -- and it does not supply acts.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import Any
 
 from factory.browser import bodies as bodies_mod
@@ -25,6 +27,22 @@ from factory.core.evidence import Delivery, Did, Exchange
 from factory.core.workflow import Target
 
 
+def _inner(root: dict[str, Any]) -> set[int]:
+    """Every frame content document under this node. The main one is not among them."""
+    found: set[int] = set()
+
+    def walk(node: dict[str, Any]) -> None:
+        inner = node.get("contentDocument")
+        if inner:
+            found.add(inner["nodeId"])
+            walk(inner)
+        for child in node.get("children") or []:
+            walk(child)
+
+    walk(root)
+    return found
+
+
 class Browser:
     """One attached browser, driven."""
 
@@ -32,6 +50,8 @@ class Browser:
         self._at = attached
         self.hand = hand
         self.bodies = bodies_mod.Bodies()
+        self.complaints: list[str] = []
+        self.dialogs: list[str] = []
 
     @classmethod
     async def attach(cls, cdp_url: str, *, seed: int | None = None,
@@ -46,7 +66,65 @@ class Browser:
         driver = cls(attached, Hand(seed=seed, pace=pace or Pace()))
         await attached.cdp.send("Network.enable", {})
         driver.bodies.watch(attached.cdp)
+        driver.listen(attached.page)
         return driver
+
+    def listen(self, page: Any) -> None:
+        """Collect what a page complains about, so an act cannot look clean while it broke.
+
+        A DIALOG MUST BE ANSWERED BY WHOEVER WATCHES IT. Registering a handler suppresses
+        the default dismissal, so a listener that only observes blocks the page forever --
+        measured, on an eval of ours that hung a browser for seven minutes doing exactly
+        that. And with a connection attached, the PERSON cannot answer it either: whatever
+        we do is the answer.
+
+        So we dismiss, which is the reversible choice, and say so loudly. A dialog answered
+        silently is the machine deciding something nobody was asked about.
+        """
+        page.on("dialog", self._answered)
+        page.on("pageerror",
+                lambda error: self.complaints.append(f"page error: {error}"[:160]))
+        page.on("requestfailed", lambda request: self.complaints.append(
+            f"request failed: {request.url.rsplit('/', 1)[-1]}"[:160]))
+
+    def _answered(self, dialog: Any) -> None:
+        """Dismiss it, and leave a mark that it happened."""
+        self.complaints.append(
+            f"dialog {dialog.type}: {dialog.message[:80]!r} -> dismissed")
+        self.dialogs.append(dialog.message)
+        asyncio.get_running_loop().create_task(self._dismiss(dialog))
+
+    @staticmethod
+    async def _dismiss(dialog: Any) -> None:
+        with contextlib.suppress(Exception):
+            await dialog.dismiss()
+
+    async def answer(self, dialog_text: str, *, accept: bool) -> Did:
+        """Replay how a dialog was answered when it was demonstrated.
+
+        Installed for the NEXT dialog only. A standing "always accept" is not consent, it
+        is the guard removed.
+        """
+        page = self._at.page
+
+        def once(dialog: Any) -> None:
+            page.remove_listener("dialog", once)
+            page.on("dialog", self._answered)
+            self.complaints.append(
+                f"dialog {dialog.type}: {dialog.message[:60]!r} -> "
+                f"{'accepted' if accept else 'dismissed'}")
+            asyncio.get_running_loop().create_task(
+                dialog.accept() if accept else dialog.dismiss())
+
+        page.remove_listener("dialog", self._answered)
+        page.on("dialog", once)
+        return Did(ok=True, value="accept" if accept else "dismiss",
+                   detail=f"the next dialog will be {'accepted' if accept else 'dismissed'}")
+
+    def complained(self) -> list[str]:
+        """What went wrong since this was last asked, emptied as it is taken."""
+        taken, self.complaints = list(self.complaints), []
+        return taken
 
     @property
     def cdp(self) -> Any:
@@ -86,8 +164,36 @@ class Browser:
         Measured at 1.8 ms, against 10 ms for an agent framework's own serialisation which
         also omitted a control carrying the exact role and name being searched for.
         """
-        got = await self.cdp.send("Accessibility.getFullAXTree", {})
-        return [node for node in got.get("nodes", []) if not node.get("ignored")]
+        every: list[dict[str, Any]] = []
+        for document in await self._documents():
+            got = await self.cdp.send("Accessibility.queryAXTree", {"nodeId": document})
+            every.extend(n for n in got.get("nodes", []) if not n.get("ignored"))
+        return every
+
+    async def _documents(self) -> list[int]:
+        """The main document and every frame's, as node ids the accessibility call accepts.
+
+        A CONTROL INSIDE A FRAME IS ADDRESSABLE BY NOTHING WITHOUT THIS -- measured: a
+        button inside one came back `no match`, and `getFullAXTree` on the main document
+        reports the frame as a node of role `Iframe` without descending into it.
+
+        `pierce` is what makes it work. A frame's content document has no node id registered
+        with the DOM agent until something asks for it, and `frameId` is not a thing
+        `Accessibility.queryAXTree` accepts -- it wants a node, which is what this returns.
+        """
+        doc = await self.cdp.send("DOM.getDocument", {"depth": -1, "pierce": True})
+        found: list[int] = []
+
+        def walk(node: dict[str, Any]) -> None:
+            found.append(node["nodeId"])
+            inner = node.get("contentDocument")
+            if inner:
+                walk(inner)
+            for child in node.get("children") or []:
+                walk(child)
+
+        walk(doc["root"])
+        return [found[0], *(n for n in found[1:] if n in _inner(doc["root"]))]
 
     async def find(self, target: Target, chooser: Chooses | None = None) -> locate.Found:
         """Rung 0, then the chooser, then a question. Descends only on a miss.
@@ -95,12 +201,18 @@ class Browser:
         The chooser is the model, and it is optional: with none supplied the driver still
         works and still says why it could not proceed, rather than pretending it can.
         """
-        asked: dict[str, Any] = {"nodeId": await self._document()}
+        asked: dict[str, Any] = {}
         if target.role:
             asked["role"] = target.role
         if target.name:
             asked["accessibleName"] = target.name
-        hits = (await self.cdp.send("Accessibility.queryAXTree", asked)).get("nodes", [])
+        #: Asked of every frame, and the answers pooled -- so two frames offering the same
+        #: control is an ambiguity `locate` refuses rather than a race between documents.
+        hits: list[dict[str, Any]] = []
+        for document in await self._documents():
+            got = await self.cdp.send(
+                "Accessibility.queryAXTree", {**asked, "nodeId": document})
+            hits.extend(got.get("nodes", []))
 
         every = await self.candidates()
         offered = locate.offered(every)
@@ -151,7 +263,7 @@ class Browser:
         #: measured, on a run whose writes all landed.
         settled = await self.fetched()
         return Did(ok=landed.dispatched, delivery=landed.delivery, value=str(landed.moves),
-                   exchanges=settled,
+                   exchanges=settled, complained=self.complained(),
                    detail=f"pressed via {found.rung}" if landed.dispatched
                           else f"refused: {landed.why}")
 
@@ -194,6 +306,39 @@ class Browser:
             await self.cdp.send("Input.dispatchKeyEvent",
                                 {"type": kind, "key": "a", "code": "KeyA",
                                  "modifiers": 8, "commands": ["selectAll"]})
+
+    async def scroll(self, to: float) -> Did:
+        """Move the page to a resting place a person scrolled to."""
+        await self._at.page.evaluate(f"window.scrollTo(0, {float(to)})")
+        await self.hand.rest()
+        return Did(ok=True, value=str(to), detail=f"scrolled to {to:.0f}")
+
+    async def select(self, found: Any, option: str) -> Did:
+        """Pick an option. Not typing: a select has no text to type into."""
+        if not found:
+            return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why)
+        held = await self.cdp.send("DOM.resolveNode",
+                                   {"backendNodeId": found.backend_node_id})
+        object_id = held.get("object", {}).get("objectId")
+        if not object_id:
+            return Did(ok=False, delivery=Delivery.OFF_TARGET, detail="unresolvable")
+        await self.cdp.send("Runtime.callFunctionOn", {
+            "functionDeclaration":
+                "function (v) { this.value = v;"
+                " this.dispatchEvent(new Event('input', {bubbles: true}));"
+                " this.dispatchEvent(new Event('change', {bubbles: true})); }",
+            "objectId": object_id, "arguments": [{"value": option}]})
+        await self.hand.rest()
+        return Did(ok=True, value=option, complained=self.complained(),
+                   detail=f"selected {option!r}")
+
+    async def key(self, name: str) -> Did:
+        """A key that is not text, into whatever holds focus."""
+        for kind in ("keyDown", "keyUp"):
+            await self.cdp.send("Input.dispatchKeyEvent", {"type": kind, "key": name})
+        await self.hand.rest()
+        return Did(ok=True, value=name, complained=self.complained(),
+                   detail=f"pressed {name}")
 
     async def evaluate(self, expression: str) -> Any:
         """Reading the page. Never a way to act on it -- acts go through the guard."""
