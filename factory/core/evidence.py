@@ -32,6 +32,7 @@ class Landed(BaseModel):
     delivery: Delivery
     why: str = ""
     at: tuple[float, float] | None = None
+    moves: int = 0
 
 
 class Did(BaseModel):

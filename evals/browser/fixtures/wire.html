@@ -1,0 +1,10 @@
+<!doctype html><meta charset="utf-8"><title>wire surface</title>
+<h1>values arrive on the wire</h1>
+<div id="grid">loading</div>
+<button id="save">Save</button>
+<script>
+  // The document holds nothing until this returns, and holds no ids afterwards either.
+  fetch('rows.json').then(r => r.json()).then(rows => {
+    document.getElementById('grid').textContent = rows.length + ' rows';
+  });
+</script>
