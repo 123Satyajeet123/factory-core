@@ -31,6 +31,14 @@ class Contract(BaseModel):
     """
 
     expects: dict[str, str] = Field(default_factory=dict)
+    #: The field whose value exists only because this act wrote it, when the destination
+    #: issued one and the demonstration observed it.
+    #:
+    #: WITHOUT IT, CONFIRMED MEANS PRESENT AND NOT CAUSED. A record already holding the
+    #: expected values satisfies the contract, and no reader can tell the two apart -- the
+    #: difference is in what was bound, not in what was read. Naming the field here keeps
+    #: the weaker confirmation visible instead of letting one word mean both.
+    identifies: str = ""
 
 
 class Reading(BaseModel):

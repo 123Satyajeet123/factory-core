@@ -66,6 +66,53 @@ object and almost no code, which is the better outcome.
   UNVERIFIABLE and `coverage` counts it. Inventing a bindable field to raise the number is
   the failure this gate exists to prevent.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    observed delta   disposition='derived'  RECORD_WRITTEN  match={'name': 'Ada Lovelace'}
+    no change        disposition='none'     "snapshot captured but no new record"
+    dom field map    disposition='none'     "no system-of-record observation captured"
+    nothing at all   disposition='none'     "no system-of-record observation captured"
+
+    mine: changed -> {'name': 'Ada Lovelace'} identifies=''
+          keyed   -> {'name': 'Ada Lovelace', 'key': 'run-7f3a'} identifies='key'
+          no-op   -> {}
+
+**THE BLIND PREDICTION WAS WRONG, and in the better direction.** I expected `Effect` to be
+replay-oriented -- a target and a value -- and to supply no evidence of change. It is
+verification-oriented: `RECORD_WRITTEN`, `new_records`, `count_new_only`,
+`forbid_collateral_loss`, `readback`, `idempotency_key`. Its own precedence is an observed
+system-of-record delta first, a DOM field map next, an on-screen read-back next, a flagged
+placeholder for a consequential act, and no effect last **with a reason** -- the same shape
+as the witness ladder, arrived at independently.
+
+**C6 satisfied: the contract is a view, not a second miner.** `Effect.match` is what a
+contract binds. `factory/compile/mine.py` is about sixty lines and mines nothing itself.
+
+**C1 holds.** The same snapshot before and after derives nothing, however consequential the
+step looked. **C3 holds**: `disposition` is the vendor's own word for it and carries a
+reason, so a refusal is visible rather than a quiet empty contract.
+
+**A form field that took a value is not a record write.** The vendor flags it
+`needs_operator_confirmation`; binding it would confirm the typing rather than the thing the
+typing was for.
+
+## The defect is narrowed, not closed, and the residue is now visible
+
+Deriving from the delta stops a contract binding fields that were already true. It does
+**not** by itself make CONFIRMED mean caused: the witness reads only the after-state, so a
+record that already held the expected values still satisfies the contract.
+
+What separates them is an **idempotency key** -- a value that exists only because we wrote
+it. The vendor derives one when the destination issued it and the demonstration observed it,
+and `Contract.identifies` now names that field. So:
+
+    identifies == ""      CONFIRMED means PRESENT
+    identifies == "key"   CONFIRMED means CAUSED
+
+One word was quietly meaning both. It is now a field on the type, so promotion can weigh the
+two differently and nothing has to infer which kind of confirmation it is holding.
+
+**Still open:** nothing yet weighs them differently. `core/memory.Confidence` counts a
+receipt without asking which kind, so a run full of presence-only confirmations promotes as
+readily as one that proved causation. That is the next thing this makes possible and it is
+not done.
