@@ -95,5 +95,12 @@ from our own hand, which `gates/learned-pace.md` forbids fitting from — the di
 would converge on whatever we already do. What is verified is the recorder, the fit, and
 the honest degradation. The fit itself is unproven until a person demonstrates something.
 
-**P2 has no home yet.** The fitted pace is scoped to the operator, and `memory/` does not
-exist. `Machine.attach(pace=...)` is the seam it will arrive through.
+**P2 now has a home, and the round trip runs.** `memory/` holds three tiers with
+inheritance down and elevation up, and the fitted pace lives at MAIN under one key, because
+how somebody drives a browser belongs to them and their machine rather than to any task:
+
+    main: pace fitted from 199 gaps, kept at MAIN, recalled as (0.255, 0.353)
+
+The default is `(0.05, 0.16)`, so what came back is the fit and not the constant.
+`factory/main.py` is the only module that knows both machines exist; `browser/pace.py`
+imports no memory and `memory/` imports no browser.

@@ -57,7 +57,7 @@ class Machine:
         got = await self.cdp.send("DOM.getDocument", {"depth": -1})
         return got["root"]["nodeId"]
 
-    async def see(self) -> list[dict[str, Any]]:
+    async def candidates(self) -> list[dict[str, Any]]:
         """The candidate set: every accessibility node the page is offering.
 
         Measured at 1.8 ms, against 10 ms for an agent framework's own serialisation which
@@ -79,7 +79,7 @@ class Machine:
             asked["accessibleName"] = target.name
         hits = (await self.cdp.send("Accessibility.queryAXTree", asked)).get("nodes", [])
 
-        every = await self.see()
+        every = await self.candidates()
         offered = locate.offered(every)
         found = locate.settle(hits, target, offered)
         if found or chooser is None:

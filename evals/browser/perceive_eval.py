@@ -58,7 +58,7 @@ async def run() -> int:
             await machine.go(f"http://127.0.0.1:{PORT}/{surface}.html")
             await asyncio.sleep(0.8)
 
-            nodes = await machine.see()
+            nodes = await machine.candidates()
             named = [n for n in nodes if (n.get("name") or {}).get("value")]
             kept = await machine.fetched()
             with_body = [e for e in kept if e.body]
