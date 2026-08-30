@@ -19,7 +19,7 @@ from typing import Any
 from factory.browser import bodies as bodies_mod
 from factory.browser import locate, session
 from factory.browser.guard import press as press_guarded
-from factory.browser.hand import Hand
+from factory.browser.hand import Hand, Pace
 from factory.core.evidence import Delivery, Did, Exchange
 from factory.core.machines import Chooses
 from factory.core.workflow import Target
@@ -34,9 +34,16 @@ class Machine:
         self.bodies = bodies_mod.Bodies()
 
     @classmethod
-    async def attach(cls, cdp_url: str, *, seed: int | None = None) -> Machine:
+    async def attach(cls, cdp_url: str, *, seed: int | None = None,
+                     pace: Pace | None = None) -> Machine:
+        """`pace` is where a fit of the operator's own rhythm arrives.
+
+        It is operator-scope rather than workflow-scope: how somebody drives a browser is a
+        property of them and their machine. With none supplied the defaults stand, and the
+        driver neither knows nor cares which it got.
+        """
         attached = await session.attach(cdp_url)
-        machine = cls(attached, Hand(seed=seed))
+        machine = cls(attached, Hand(seed=seed, pace=pace or Pace()))
         await attached.cdp.send("Network.enable", {})
         machine.bodies.watch(attached.cdp)
         return machine
@@ -119,10 +126,17 @@ class Machine:
         return await self.press(await self.find(target, chooser))
 
     async def type(self, text: str) -> Did:
-        """Key by key, into whatever holds focus, the way a keyboard delivers it."""
+        """Key by key, into whatever holds focus, the way a keyboard delivers it.
+
+        THREE EVENTS PER CHARACTER, NOT ONE. `type: char` alone fires `keypress` and
+        `input` and never `keydown` -- measured: ten characters typed and the page's own
+        keydown listener saw zero. Text appearing with no keystrokes behind it is exactly
+        what a behavioural detector looks for.
+        """
         for character in text:
-            await self.cdp.send("Input.dispatchKeyEvent",
-                                {"type": "char", "text": character})
+            for kind in ("keyDown", "char", "keyUp"):
+                await self.cdp.send("Input.dispatchKeyEvent",
+                                    {"type": kind, "text": character, "key": character})
             await self.hand.rest_key()
         return Did(ok=True, value=text, detail=f"typed {len(text)} characters")
 

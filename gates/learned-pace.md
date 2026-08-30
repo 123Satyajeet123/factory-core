@@ -67,6 +67,33 @@ learning to imitate itself, and the distribution would converge on whatever we a
 Only segments a PERSON produced may be fitted from, and the ledger already knows which are
 which because taking the wheel writes a segment.
 
-## Result
+## Result — 2026-08-30, the recorder and the fit, not yet a person
 
-(filled in by execution — not by reasoning)
+    recorder saw   moves=303  keys=10  presses=6  releases=6
+    landing points 6 distinct of 6
+    fit samples    keystroke=9 press=6 rest=5 dwell=6 aim_spread=12 travel=3
+    kept default   keystroke, press, rest, dwell, travel
+
+**P3 holds, and this run is mostly P3.** Every parameter with fewer than twelve
+observations kept its default and said so. Only `aim_spread` reached the threshold. A fit
+that reported numbers for all six here would have been fitting noise and calling it
+knowledge.
+
+**P1 holds on synthetic events** (`python -m factory.browser.pace`): 199 keystroke gaps, 60
+holds and 120 landing points produce a pace measurably unlike the default, and a thin
+recording leaves the default alone.
+
+**THE RECORDER CAUGHT A DEFECT IN OUR OWN DRIVER, WHICH IS THE POINT OF BUILDING IT.**
+First run: `keys=0` after typing ten characters. `Input.dispatchKeyEvent` with `type: char`
+fires `keypress` and `input` and never `keydown` — so text appeared with no keystrokes
+behind it, which is precisely what a behavioural detector looks for. Fixed to keyDown, char,
+keyUp; the recorder now sees ten. Nothing else in the tree would have found this, because
+the recorder is the only thing reading the same channel a detector reads.
+
+**Not yet done, and it is the whole point: no fit from a person exists.** These events came
+from our own hand, which `gates/learned-pace.md` forbids fitting from — the distribution
+would converge on whatever we already do. What is verified is the recorder, the fit, and
+the honest degradation. The fit itself is unproven until a person demonstrates something.
+
+**P2 has no home yet.** The fitted pace is scoped to the operator, and `memory/` does not
+exist. `Machine.attach(pace=...)` is the seam it will arrive through.
