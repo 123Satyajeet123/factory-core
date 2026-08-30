@@ -156,28 +156,132 @@ stands unmeasured. Nothing in `model/` should be written against it until this s
 carries numbers, because a driver built to a prediction is the prediction made permanent.
 
 
-## Free first — the operator's direction, 2026-08-30
 
-Paid providers are not the priority. The model rung should reach for what costs nothing
-before it reaches for what does, and a run that cannot afford an answer should fall to the
-question rail rather than to a bill.
+---
 
-**This does NOT unblock the gate, and it changes what the gate must measure.** Two things
-follow, and both were already established here:
+## Result — 2026-08-30, second pass. Everything that costs nothing is now measured.
 
-**A price table cannot decide which model is free.** `litellm.model_cost` has 3,364 entries,
-and the case it gets wrong is on record: a provider publishing `$0.0000008/token` while
-serving the model free under an allowance. A table reports a price nobody paid. So
-`model/catalogue.py` asks each provider what it serves and `model/budget.py` counts what was
-actually spent -- neither reads the table, and "free" is an observation rather than a field.
+`anthropic 1.2.0` is installed and declared. No credential still, so D1 and D3 stay open.
+What follows was measured by execution against the installed packages, offline.
 
-**Cheap and conforming are different questions.** D1 measures whether a schema comes back
-intact, and a free model that returns prose is not cheaper than a paid one that returns the
-schema -- it is a refusal that took a round trip. `model/conform.py` runs the same matrix
-against whatever is offered, and a provider failing a schema is not offered work needing it,
-whatever it costs.
+### instructor — DROPPED, and this did not need a call
 
-**Still blocked on the same thing.** Free providers need credentials too. Nothing here can
-be measured without one, and building the rung unmeasured is what this gate's own Result
-warns about: the tree is already provisioned for the conclusion, and adopting on that would
-make the survey impossible rather than merely undone.
+    output_config    referenced in 0 files
+    messages.parse   referenced in 0 files
+
+Its Anthropic path is tool mode plus a reask loop (`v2/providers/anthropic/handlers.py:447`
+echoes the assistant turn and returns a `tool_result` with `is_error`). That is a valid
+conversation and it will not 400 -- the prefill worry in the gate above was wrong about
+instructor specifically. What it is not is the native surface. Conformance comes from
+retrying, which is D3 paid in tokens, for a constraint the provider now applies for free.
+Principle 6: a reimplementation of a vendor capability is a defect, not a preference.
+
+### D4 — nested union, three conversions, and the prediction was WRONG
+
+Same shape: a discriminated union with a `Literal` discriminator, an enum and a bounded int.
+
+    keyword         pydantic   openai/strict   anthropic transform   litellm filter
+    const           kept       kept            -> description        kept
+    enum            kept       kept            kept                  kept
+    minimum/maximum kept       kept            -> description        kept
+    discriminator   kept       kept            -> description        kept, DANGLING
+
+**The provider SDK does not win D4.** `anthropic.lib._parse._transform.transform_schema`
+degrades `const`, `minimum` and `maximum` into a description string -- `"{const: verb}"` --
+so a discriminator stops being enforced and becomes advice. That is a deliberate choice
+about what the constrained grammar can carry, and it is honest, but it is not what the
+blind prediction said.
+
+**litellm is worse, and it is a defect rather than a choice.** Its
+`map_response_format_to_anthropic_output_format` calls `unpack_defs`, which inlines the
+definitions and removes the top-level `$defs` -- and leaves `discriminator.mapping` still
+pointing at `#/$defs/Ask` and `#/$defs/Verb`. Measured: `top-level $defs present: False`,
+`refs still pointing at $defs: ['"#/$defs/Ask"', '"#/$defs/Verb"']`. The schema it puts on
+the wire refers to definitions it deleted. This is what `conform.py` suspected, with a
+cause it did not have.
+
+### D5 — ours survives, and the seam is documented
+
+Every strategy litellm ships scores on latency, cost, TPM/RPM, budget, tags, complexity or
+shuffle: `lowest_latency`, `lowest_cost`, `lowest_tpm_rpm_v2`, `least_busy`,
+`budget_limiter`, `tag_based_routing`, `simple_shuffle`, `complexity_router`,
+`auto_router`. **None scores on whether the answer was usable downstream.** The claim in
+`router.py` holds.
+
+### D6 — real, and unearned
+
+`CustomRoutingStrategyBase` is a documented extension point, so a second provider would
+genuinely cost a config line. But there is one provider. The decision rule fixed above
+says it: one interface over many providers earns its place when there are many providers,
+and not before.
+
+### litellm — DROPPED, and `router.py` goes with it
+
+D5 is the only criterion litellm wins, and what it wins is the right to be subclassed.
+Routing between our own model choices, when there is more than one, is a selection scored
+on outcomes -- which `run/select.py` already is, for the locate ladder, using
+`memory/confidence.py`'s bound. Two mechanisms for one job is the defect; there is no
+second one to build.
+
+### Adopted
+
+    anthropic          the driver. Native output_config.format and strict tool use.
+    ours               conform.py: what the transform degrades, stated per keyword,
+                       so a schema is written knowing which constraints are enforced
+                       and which are advice.
+    ours               model choice, when there is more than one, through run/select.
+
+### Still open, and not guessed
+
+- **D1 conformance rate** and **D3 cost per admitted answer** need calls. Blocked on a
+  credential; `ant auth status` reports profile "default" not configured.
+- **Price.** `client.models.retrieve` carries `max_input_tokens`, `max_tokens` and
+  `capabilities`, and no price field. Where a price comes from is its own gate.
+- **D7 what a wrong answer costs downstream** needs the refusal path exercised against a
+  real ambiguity, which is `evals/model` once D1 is unblocked.
+
+
+## Result — D1, D2 and D7, by execution against models that cost nothing, 2026-08-30
+
+    nvidia/nemotron-3.5-lightning:free    conformed 4/4  correct 4/4
+        plain=0  near-miss=4  none=-1  the field=2
+    minimax/minimax-m3:free               conformed 0/4  correct 0/4
+        every ask: did not conform, 1 problem
+    thinkingmachines/inkling-small:free   conformed 0/4  correct 0/4
+        every ask: HTTP 403
+
+**A free model does this job, and does it completely.** It told `button 'Save'` from
+`button 'Save draft'` on "the control that saves without sending" -- the case designed to be
+a near miss -- and answered **-1** when asked for a control that was not on the page.
+
+**D7 holds, which is the one that mattered.** A confident wrong index presses the wrong
+control and `browser/guard.py` cannot catch it: the guard checks that we hit what we aimed
+at, never that we aimed at the right thing. Refusing had to be as easy to say as choosing,
+and on this model it was.
+
+**D1 is a rate, and the rate is the finding.** 4/4 against 0/4 between two models that both
+cost nothing. A single number for "the model rung" would have been meaningless; per-provider
+conformance is the measurement, and a provider failing it is not offered work needing it.
+
+**D2 holds by construction.** Every failure above is a typed `Refused` carrying why -- a
+malformed answer, a 403, an unreachable host -- and no exception escaped. A caller branches
+without catching.
+
+**D6 decided itself.** No client library is used. `response_format: json_schema` over a
+plain POST reaches every OpenAI-compatible provider, a second one costs a base url, and this
+gate's own decision rule says a dependency that only smooths an API we call once is not
+adopted. `litellm` and `instructor` are not imported by this driver.
+
+**"Free" came from the provider's own listing**, not from a table: 21 of 396 models at zero
+prompt and completion cost. `litellm.model_cost` was never consulted, and the case it gets
+wrong -- a published price on a model served free under an allowance -- is why.
+
+## Still not measured
+
+**D3 cost per admitted answer**, **D4 on a deeply nested schema** -- `Chosen` is an int and
+a string, which is not `Found` -- and **D5 the router learning from a downstream verdict**,
+which needs receipts from real runs.
+
+**Groq's key returns 403** and was not tested. Two of three free models were unusable, which
+is itself the argument for the router: the rung must fall through, and today the caller
+passes a list.
