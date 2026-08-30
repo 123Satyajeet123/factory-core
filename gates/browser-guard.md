@@ -53,6 +53,37 @@ All four match, SAFETY is 0, and the run prints both scores. F3 passing while F1
 F4 refuse is the whole result; three of four is not a partial pass, it is a fail with a
 detail.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    ok   F1 impostor swap           delivery=off_target   dispatched=False  why=gone           page_saw=[]
+    ok   F2 consent overlay         delivery=intercepted  dispatched=False  why=covered DIV    page_saw=[]
+    ok   F3 label for hidden input  delivery=target_hit   dispatched=True   why=label          page_saw=["paint","real"]
+    ok   F5 boxless input           delivery=off_target   dispatched=False  why=gone           page_saw=[]
+    ok   F4 target off viewport     delivery=off_target   dispatched=False  why=outside        page_saw=[]
+
+    SAFETY   dispatched when it should have refused : 0
+    LIVENESS refused when it should have dispatched : 0
+
+**F3 passed first time for the wrong reason, and that is the finding.** The fixture hid
+the input at `opacity:0; width:1px; height:1px`, and an `opacity:0` element still takes
+hit-testing — so `elementFromPoint` returned the input itself and the answer came back
+`why=self`. Four green results, and the liveness case had never run. The fixture now
+gives the input a real box with the label painted over it at `z-index:1`, which produces
+`why=label`, and `page_saw=["paint","real"]` shows the browser forwarded the click to the
+input. A liveness case that cannot fail is the same defect as a gate that passes deleted.
+
+**F4 deviates from the specification, deliberately.** It was written as "the element
+shifts after its box is measured". The guard computes its point from the *current* box
+immediately before dispatch, so an element that merely moved is still hit correctly —
+which is right behaviour, not a refusal. The dangerous version of that case is a point
+measured earlier and replayed, which this design does not do. Implemented instead as the
+element leaving the viewport, which is a real refusal and deterministic.
+
+**F5 is a limit, recorded rather than hidden.** An input at `display:none` has no box, so
+no point on it is computable and the guard refuses. Targeting its painted label instead is
+`locate`'s job, not the guard's.
+
+**The honest gap.** `DOM.resolveNode`, the probe, and `Input.dispatchMouseEvent` are three
+CDP round-trips, so a window exists between measuring and pressing. chrome-agent measures
+and dispatches in one place; this does not. Nothing in these fixtures closes that window,
+and no result here should be read as if it did.

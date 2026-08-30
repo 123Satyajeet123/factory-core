@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>guard fixtures</title>
+<style>
+  body { font: 14px system-ui; margin: 40px; }
+  #target { padding: 12px 20px; }
+  #veil { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; }
+  /* A styled checkbox. The real input keeps a box -- so a point on it is computable --
+     but the label is painted OVER it, so elementFromPoint returns the label. */
+  #wrap { position: relative; display: inline-block; }
+  #real { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; }
+  #paint { position: relative; z-index: 1; display: inline-block;
+           padding: 12px 20px; border: 2px solid #333; }
+  /* A checkbox with no box at all: nothing to compute a point on. */
+  #boxless { display: none; }
+</style>
+
+<button id="target">target</button>
+<p id="wrap"><input type="checkbox" id="real"><label id="paint" for="real">styled checkbox</label></p>
+<p><input type="checkbox" id="boxless"><label id="boxpaint" for="boxless">boxless checkbox</label></p>
+<div id="veil"></div>
+
+<script>
+  // What was actually delivered. Every fixture asserts on this, never on appearance.
+  window.__clicks = [];
+  for (const id of ['target', 'real', 'paint', 'veil', 'boxless', 'boxpaint'])
+    document.getElementById(id).addEventListener('click',
+      e => window.__clicks.push(e.target.id || e.target.tagName));
+</script>
