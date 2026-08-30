@@ -84,6 +84,46 @@ That a separate interpreter is a sandbox. A cell still runs as our user, on our 
 our network. It cannot read our keys or import our code, and that is the whole of the
 claim — anything stronger needs a container and is a different gate.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    runtime python 3.13.5, protocol 3
+
+    K1 no secret reaches a cell        cell saw (None, None)
+    K2 the factory is not importable   ModuleNotFoundError
+    K3 top-level await                 result='awaited'
+    K3 a task survives its cell        result=True
+    K4 an interrupt lands              KeyboardInterrupt after 2.0s
+    K4 the runtime keeps serving       next cell -> 'still here'
+    K5 a hung cell is bounded          KeyboardInterrupt after 2.0s
+    K5 and recoverable                 next cell -> 'recovered'
+    K6 round trip                      0.3 ms median over 5 trivial cells
+
+    ESCAPED 0    WEDGED 0
+
+**Settled: two interpreters, on K1 and K2 rather than on `mcp`.** The environment handed to
+a cell is an allowlist — `PATH HOME LANG LC_ALL TMPDIR TERM`, plus an emptied `PYTHONPATH`
+— and a canary planted in the parent is invisible from inside a cell. That is the whole of
+the isolation claim and it does not depend on any pin.
+
+**K5 does not interrupt the way K4 does, and the difference is the runtime's.** A cell
+suspended at an `await` cannot be reached by SIGINT — raising there would land in the wrong
+task — so the runtime cancels the cell task and reports the cancellation as a
+`KeyboardInterrupt`. Both paths end in `error` + `done` and both leave the session usable,
+which is what K5 asks. Worth knowing before someone writes a cell that catches
+`KeyboardInterrupt` around an `await`: it will not intercept this.
+
+**K6, and the wire is not where the money goes.** 0.3 ms per round trip against
+`door_eval`'s 1116 ms for one guarded browser act. Together with the door's 3 ms of wire,
+`gates/kernel-browser-wire.md`'s open item — *the round-trip cost of one act over the
+wire* — is answered: transport is under half a percent of an act, and pacing is the rest.
+
+**The isolation checks were verified by breaking them.** `evals/mutation.py` now carries
+two kernel mutations — a cell inheriting `os.environ`, and the repository placed on a
+cell's `PYTHONPATH` — and both are caught.
+
+**And the harness had the defect it exists to detect.** `noticed()` called each suite's
+`run()` without awaiting it; the kernel suite's is a coroutine function, so `run() != 0`
+compared a coroutine object to zero and was always true. Both kernel mutations reported
+*caught* while the suite never executed. Found by a `RuntimeWarning`, not by the harness.
+Fixed, and the harness was then checked in the other direction — a mutation of a constant no
+case depends on is reported as SURVIVED, so a green run is falsifiable.

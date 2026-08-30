@@ -13,14 +13,18 @@ or the mechanism was never load-bearing -- and both are findings, not noise.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import importlib
+import inspect
 import io
+import os
 import sys
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from factory.core.contract import Receipt, Verdict
+from factory.kernel.venv import HERE, KEEP
 from factory.witness.channel import Channel
 
 
@@ -34,11 +38,25 @@ class Mutation:
     module: str
     attribute: str
     replacement: object
+    #: Which suites can notice this. Scoped because a suite that launches a runtime or a
+    #: browser costs seconds, and running every one against every mutation buys nothing.
+    suites: tuple[str, ...] = ()
 
 
 def _confirms_everything(contract, reading, *, reader: str = "", channel: str = "") -> Receipt:
     """A judge with every refusal removed. The laziest possible wrong answer."""
     return Receipt(verdict=Verdict.CONFIRMED, reader=reader, channel=channel, why="mutated")
+
+
+def _inherits_everything(cell_env: dict[str, str] | None = None) -> dict[str, str]:
+    """A kernel environment with the allowlist removed. What inheriting os.environ means."""
+    return dict(os.environ)
+
+
+def _repo_on_the_path() -> dict[str, str]:
+    """The allowlist kept, but the factory made importable from inside a cell."""
+    kept = {name: os.environ[name] for name in KEEP if name in os.environ}
+    return kept | {"PYTHONPATH": str(HERE), "PYTHONNOUSERSITE": "1"}
 
 
 MUTATIONS = (
@@ -65,17 +83,41 @@ MUTATIONS = (
         invalidates="the whole ladder",
         module="factory.witness.ladder", attribute="judge",
         replacement=_confirms_everything),
+
+    Mutation(
+        name="a cell inherits our environment",
+        invalidates="K1, no secret reaches a cell",
+        module="factory.kernel.venv", attribute="environment",
+        replacement=_inherits_everything,
+        suites=("evals.kernel.kernel_eval",)),
+
+    Mutation(
+        name="the factory is on a cell's path",
+        invalidates="K2, the factory is not importable from a cell",
+        module="factory.kernel.venv", attribute="environment",
+        replacement=_repo_on_the_path,
+        suites=("evals.kernel.kernel_eval",)),
 )
 
-#: The suites a mutation is allowed to be caught by. Any one failing is enough.
-SUITES = ("evals.witness.witness_eval",)
+#: Where a mutation is checked when it names no suite of its own.
+SUITES = ("evals.witness.witness_eval", "evals.witness.mutation_eval")
+
 
 
 def noticed(suite: str) -> bool:
-    """Whether this suite fails right now. Its own output is not this module's output."""
-    run: Callable[[], int] = importlib.import_module(suite).run
+    """Whether this suite fails right now. Its own output is not this module's output.
+
+    A suite's `run` may be a coroutine function -- anything driving a browser or a runtime
+    is. Calling one without awaiting it returns a coroutine object, and `!= 0` on that is
+    always true, so every mutation reads as caught and the harness certifies nothing.
+    Measured: both kernel mutations passed this way before the check below existed.
+    """
+    run: Callable[[], int | Awaitable[int]] = importlib.import_module(suite).run
     with contextlib.redirect_stdout(io.StringIO()):
-        return run() != 0
+        answer = run()
+        if inspect.isawaitable(answer):
+            answer = asyncio.run(answer)
+    return answer != 0
 
 
 def run() -> int:
@@ -85,7 +127,7 @@ def run() -> int:
         original = getattr(module, mutation.attribute)
         setattr(module, mutation.attribute, mutation.replacement)
         try:
-            caught = any(noticed(suite) for suite in SUITES)
+            caught = any(noticed(suite) for suite in (mutation.suites or SUITES))
         finally:
             setattr(module, mutation.attribute, original)
 

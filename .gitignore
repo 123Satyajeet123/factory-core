@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-kernel/
 .ruff_cache/
 candidates/*/
 !candidates/*.patch

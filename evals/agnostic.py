@@ -20,11 +20,20 @@ DRIVERS = Path(__file__).resolve().parents[1] / "factory"
 
 #: A hostname that is not this host. Loopback is how a fixture is served.
 HOST = re.compile(r"\bhttps?://(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.[a-z]{2,}", re.I)
-#: A CSS or XPath selector rooted at an id or class -- per-destination knowledge in code.
-#: The whole string must be the selector. An earlier version matched a quote followed by a
-#: dot, so `".strip()` and `" ".join(...)` both read as class selectors: the check reported
-#: two offences on its first run and both were its own.
-SELECTOR = re.compile(r"""(["'])\s*(?:[#.][A-Za-z][\w .#>:\[\]=-]*|//[a-z]+\[)\1""")
+#: A selector rooted at an id, or an xpath. Per-destination knowledge written in code.
+#:
+#: THIS PATTERN FIRED ON ITSELF THREE TIMES, and each round narrowed what it claims.
+#: `".strip()` and `" ".join(...)` matched when a quote followed by a dot was enough.
+#: `".venv-kernel"` matched when a lone `.name` was enough -- a dotfile and a class are the
+#: same characters. `location.href`, `motion.js` and `rlm.repl` matched when `tag.class`
+#: was enough -- so is every dotted identifier in Python.
+#:
+#: SO A CLASS SELECTOR IS NOT DETECTED, and that is stated rather than papered over. An
+#: `#id` and an xpath are unambiguous; `.save-button` is indistinguishable from a filename
+#: by regex, and a check that flags directory names is a check somebody switches off, which
+#: catches nothing at all. The gap is real and this is where it is written down.
+SELECTOR = re.compile(r"""(["'])\s*(?:\#[A-Za-z][\w-]*[\w .\#>:\[\]=-]*|//[a-z]+\[)\1""")
+
 #: A name a person would recognise as a product rather than as a mechanism.
 NAMED = re.compile(r"\b(apollo|gmail|sheets|linkedin|salesforce|hubspot|notion)\b", re.I)
 
