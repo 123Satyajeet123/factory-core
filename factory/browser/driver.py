@@ -1,4 +1,4 @@
-"""The BROWSER machine: what the harness and the factory are handed.
+"""The BROWSER driver: what the harness and the factory are handed.
 
 THE ONLY THING IN THIS TREE THAT TOUCHES CDP. Everything above it asks for acts by role and
 name and receives typed evidence; nothing above it knows a protocol, a session or a node.
@@ -43,10 +43,10 @@ class Browser:
         driver neither knows nor cares which it got.
         """
         attached = await session.attach(cdp_url)
-        machine = cls(attached, Hand(seed=seed, pace=pace or Pace()))
+        driver = cls(attached, Hand(seed=seed, pace=pace or Pace()))
         await attached.cdp.send("Network.enable", {})
-        machine.bodies.watch(attached.cdp)
-        return machine
+        driver.bodies.watch(attached.cdp)
+        return driver
 
     @property
     def cdp(self) -> Any:

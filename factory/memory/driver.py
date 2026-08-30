@@ -1,4 +1,4 @@
-"""The MEMORY machine: resolve, write, elevate, demote.
+"""The MEMORY driver: resolve, write, elevate, demote.
 
 Three tiers with inheritance down and elevation up. Nothing is copied between them: a
 narrower entry shadows a wider one, and resolution walks EXECUTION, WORKFLOW, MAIN and

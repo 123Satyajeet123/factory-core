@@ -43,7 +43,7 @@ improvement.
 Each is one lifecycle, one vendor, one typed input and output, and one eval suite that
 knows no workflow and no site.
 
-| machine | converts | vendor |
+| driver | converts | vendor |
 |---|---|---|
 | `browser/` | intent to acts, page to perception | playwright + raw CDP + ghost-cursor |
 | `kernel/` | code to effects | prime-agent `rlm`, in its own venv |
@@ -53,7 +53,7 @@ knows no workflow and no site.
 | `capability/` | evidence to an installed, callable tool | the prime-agent skill format |
 
 `compile/`, `run/`, `orchestrate/` and `authority/` are the line those sit on.
-`core/` holds types and protocols and imports no machine.
+`core/` holds types and protocols and imports no driver.
 
 ## How things get built
 
@@ -79,7 +79,7 @@ on it.
 1. `core/` imports no driver; drivers import `core/` types.
 2. Every driver is replaceable behind its `driver.py` — which is what makes six
    independent eval suites mean anything.
-3. **No machine knows a destination.** `uv run python -m evals.agnostic` fails the tree if
+3. **No driver knows a destination.** `uv run python -m evals.agnostic` fails the tree if
    any file under `factory/` names a host, a selector or a product. Procedures over a
    destination are capabilities, and capabilities come from evidence through
    `capability/` — never from a file somebody wrote.

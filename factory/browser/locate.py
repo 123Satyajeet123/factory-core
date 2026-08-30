@@ -2,7 +2,7 @@
 
 Rung 0 asks the accessibility tree for the recorded role and name and refuses unless the
 answer is unique. The descent to a model, to pixels, and finally to a question belongs to
-the caller: deciding which candidate is the demonstrated one is not this machine's job.
+the caller: deciding which candidate is the demonstrated one is not this driver's job.
 
 REFUSING IS AN ANSWER. Acting on the wrong control is indistinguishable from working until
 something lands in the wrong field, so zero matches and two matches are both refusals and

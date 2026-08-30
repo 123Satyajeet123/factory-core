@@ -2,7 +2,7 @@
 
 Not scored on outcomes and not learned. `run/select.py` is ordered by cost and IS learned;
 conflating the two would let a cheap channel outrank a truthful one, which is the one trade
-this machine may never make.
+this driver may never make.
 
 A LOWER RUNG NEVER OVERRIDES A HIGHER ONE. The first rung that is not blind decides,
 including when it refutes. Walking on after a refutation to look for a confirmation is how a

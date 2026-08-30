@@ -6,7 +6,7 @@ readers, supplies its own without a back door being cut here for it.
 
 A reader is PRODUCT, not machinery. One hand-written per surface kind is the same mistake
 as one capability per workflow; if this package ends up importing them by name, perception
-stopped being extendable at the point this machine exists to extend it.
+stopped being extendable at the point this driver exists to extend it.
 """
 
 from __future__ import annotations

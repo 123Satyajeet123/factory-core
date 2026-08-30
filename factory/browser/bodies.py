@@ -1,7 +1,7 @@
 """What a page fetched for itself, on the CDP session that is already open.
 
 Plain CDP, no extension point: nothing here rides a vendor's internals, which is what makes
-the BROWSER machine a tier-1 dependency rather than a tier-2 extend.
+the BROWSER driver a tier-1 dependency rather than a tier-2 extend.
 
 DEADLOCK, AND IT IS A REAL CDP RULE. `getResponseBody` is a request, and issuing one from
 inside a handler for an event on the same connection hangs forever -- the client is inside

@@ -1,6 +1,6 @@
 """A channel that did not perform the act, and the order they rank in.
 
-The defining property of the machine: an act and its confirmation cannot share an author.
+The defining property of this driver: an act and its confirmation cannot share an author.
 If we produced the bytes, reading them back reports what we did and never what happened.
 
 DOM IS OURS, and it is the non-obvious member. A click mutates the document directly, and
