@@ -1,1 +1,1 @@
-"""Which act's value another consumed."""
+"""Ours. Their alignment is positional and value-based and carries no provenance."""

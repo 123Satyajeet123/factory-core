@@ -1,1 +1,3 @@
-"""Scored on the downstream verdict, not the model's report of itself."""
+"""litellm CustomRoutingStrategyBase. No strategy of theirs learns from a downstream verdict; ours
+scores on whether the compiler could use the answer.
+"""

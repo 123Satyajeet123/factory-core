@@ -8,15 +8,18 @@
 
 [[vendor]]
 name    = "browser-use"
-tier    = 3
+# TIER 2, NOT 3. Checked at the rev below: its pyproject says `openai>=2.26.0`, a
+# floor, so the pin patch this carried was unnecessary. None of our three additions
+# modifies it -- bodies subclasses BaseWatchdog, guard is a choice not to use
+# ClickElementEvent, witness sits above the actuator. There is no patch series.
+tier    = 2
 use     = "import"
 url     = "https://github.com/browser-use/browser-use.git"
 rev     = "b4bad86d21bf693b9ae5748b667fc32fc8b8e7d5"
 path    = "candidates/browser-use"
 license = "MIT"
 imports = "browser_use"
-patch   = "candidates/browser-use-openai-pin.patch"
-why     = "the BROWSER actuator; three patches ride its own extension points"
+why     = "the BROWSER actuator. We use its session, CDP client and DOM serialisation; we extend via BaseWatchdog and dispatch clicks ourselves"
 
 [[vendor]]
 name    = "prime-agent"
@@ -39,3 +42,8 @@ path    = "candidates/openadapt-flow"
 license = "MIT"
 imports = "openadapt_flow"
 why     = "induce_program and effect mining. Tier 1, not 3: three modules imported, none patched"
+
+# REOPENED 2026-08-30: two candidates were excluded on grounds since lifted --
+# Stagehand for being TypeScript, Skyvern for AGPL over a network. Language and
+# licensing are no longer constraints here. Criteria go in a gate before either is
+# read again; neither gets a row until one is decided.
