@@ -25,6 +25,7 @@ from factory.core.question import Ask, Question
 from factory.core.verbs import Doing
 from factory.core.workflow import Step, Workflow
 from factory.run import select
+from factory.run import stop as stopping
 
 
 async def one_step(browser: Any, step: Step, row: Mapping[str, str], *,
@@ -134,7 +135,7 @@ def _witnessed(memory: Any, step: Step, workflow: str, run_id: str,
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
                *, witness: Any = None, memory: Any = None,
                authority: Any = None, chooser: Any = None, run_id: str = "",
-               prices: Any = None) -> Run:
+               prices: Any = None, cap: Any = None, goal: Any = None) -> Run:
     """The whole workflow, over every row. Stops a row at its first failing step.
 
     THREE SEAMS DOING THREE JOBS. `witness` judges what happened, `memory` HOLDS a permit,
@@ -182,16 +183,30 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
             #: rung answered and would drown the difference the price exists to show.
             if prices is not None and resolving > 0:
                 prices.observe(rung, resolving)
-            receipt = None
+            #: BOTH RESET EVERY STEP. Bound only inside the branch below, `bound` would
+            #: carry the PREVIOUS step's contract onto a step that has none -- not a crash,
+            #: a step recorded as checked against something it was never checked against.
+            receipt, bound = None, None
             if step.contract is not None and witness is not None:
                 #: Bound to THIS row. A contract carrying the demonstration's value would
                 #: confirm every row against the record the demonstration wrote.
-                receipt = witness.witness(did, step.contract.for_row(row))
+                bound = step.contract.for_row(row)
+                receipt = witness.witness(did, bound)
             done.steps.append(
                 StepRun(intent=step.intent, did=did, receipt=receipt, rung=rung,
+                        contract=bound,
                         seconds=took))
             if not did.ok:
                 break
         run.rows.append(done)
 
+        #: CHECKED BY CODE, AFTER EVERY ROW. A cap nothing inside the run can raise, and a
+        #: goal declared once rather than decided again per row.
+        ended = stopping.after_row(run, cap=cap or stopping.Cap(), goal=goal,
+                                   rows_left=len(rows) - index - 1)
+        if ended is not None:
+            run.stopped = ended
+            return run
+
+    run.stopped = stopping.ran_out(run, cap=cap or stopping.Cap())
     return run

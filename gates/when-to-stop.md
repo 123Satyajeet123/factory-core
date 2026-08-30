@@ -55,6 +55,42 @@ C5 is where I expect to be wrong. The temptation is to pick a threshold -- three
 five -- and I expect the first implementation to do that and to look reasonable. The number
 would be arbitrary and would fire on a workflow whose fourth row is legitimately hard.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    ok  C1 a cap cannot be raised from outside            frozen
+    ok  C3 enough is its own ending                       did what it was for (wanted=True)
+    ok  C3 and so is running out                          no rows left
+    ok  C4 an irreversible act that did not land stops it
+    ok  C4 a reversible one does not                      carried on
+    ok  C5 grinding is a stop                             2 rows produced no receipt
+    ok  C5 a failing row that taught something is not     carried on
+    ok  C2 a ceiling is its own reason                    3 rows
+    ok  C6 room left is reported when it was not reached  2 of 3 unused
+    FAULTS 0
+
+**C1 holds by construction.** `Cap` is frozen, so raising it from inside a run is a
+`ValidationError` rather than a policy nobody enforces.
+
+**C4 fires ahead of every other condition**, including the cap. Something that cannot be
+undone was done and the witness says it did not land: the next row would do it again, so
+this does not wait for the end of anything. A REVERSIBLE refutation is an ordinary bad row
+and does not stop the run -- the two would be indistinguishable without
+`StepRun.irreversible`, which is why it is carried into the evidence.
+
+**MY BLIND PREDICTION WAS HALF RIGHT, and the half I got wrong is the interesting one.** I
+predicted I would pick an arbitrary failure threshold. I did pick a number --
+`learning_nothing = 3` -- but what it counts is derived rather than picked: rows that
+produced NO RECEIPT AT ALL. A failing row is not grinding, because a refutation is something
+learned; the run that must stop is the one learning nothing. A count of failures would have
+fired on a workflow whose fourth row is legitimately hard, which is exactly what the
+prediction warned about and exactly what this avoids.
+
+The number that remains picked is how many quiet rows in a row. That is a knob with a
+meaning, not a threshold standing in for a judgement.
+
+## Not done
+
+The goal is `confirmed: N` and nothing else. "Until the list is exhausted" is the source
+running dry, which `run/rows.py` already knows and does not report to stopping. Anything
+richer -- until a condition on the page holds -- is a predicate, and putting a model-written
+one on the safety path is what this gate's second candidate was rejected for.

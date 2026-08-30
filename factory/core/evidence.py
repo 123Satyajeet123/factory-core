@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from factory.core.contract import Receipt
+from factory.core.contract import Contract, Receipt
 from factory.core.question import Question
 
 
@@ -132,12 +132,25 @@ class StepRun(BaseModel):
     named by `run/select.py` and was being dropped here, which made "how much of this run
     needed a model" underivable from a Run and left `observe.py` reporting it as unknown.
     Empty means nothing recorded one, and `observe` counts that rather than assuming free.
+
+    `seconds` is what this step actually took. A completed run therefore needs no cost model
+    at all -- the model in `observe.py` exists to price a rung that has not been seen, and a
+    step that HAS been seen is not an estimate of itself.
     """
 
     intent: str = ""
     did: Did
     receipt: Receipt | None = None
     rung: str = ""
+    #: Whether the act could not be undone. Carried here because `run/stop.py` must know
+    #: it AFTER the fact, and the step it came from is not in the evidence.
+    irreversible: bool = False
+    #: What the receipt was judged against, bound to THIS row. Kept because a verdict says
+    #: what happened and not what was asked, and every use of a run after it ends -- what
+    #: to learn from an act nobody could read, why a field came back unreadable -- needs
+    #: both. Without it a stored run is a list of answers to questions nobody wrote down.
+    contract: Contract | None = None
+    seconds: float = 0.0
 
 
 class RowRun(BaseModel):
@@ -161,6 +174,8 @@ class Run(BaseModel):
 
     workflow: str = ""
     rows: list[RowRun] = Field(default_factory=list)
+    #: Why it ended. A run that says only "stopped" is one nobody can act on.
+    stopped: Any = None
 
     def receipts(self) -> list[Receipt]:
         return [s.receipt for r in self.rows for s in r.steps if s.receipt]
