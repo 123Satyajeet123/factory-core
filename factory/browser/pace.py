@@ -1,7 +1,7 @@
 """Fitting a Pace to the person, from what the recorder saw them do.
 
 FOR THE FACTORY, NOT FOR A WORKFLOW. How someone drives a browser is a property of them and
-their machine, not of the task in front of them, so a fit is held at operator scope and
+their computer, not of the task in front of them, so a fit is held at operator scope and
 every workflow uses it.
 
 THE SAME PRINCIPLE THE FACTORY RUNS ON. A capability comes from the record rather than from

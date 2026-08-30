@@ -16,7 +16,7 @@ from factory.browser.hand import Pace
 from factory.core.memory import Kind, Tier
 from factory.memory.driver import Memory
 
-#: How a person drives a browser is a property of them and their machine, not of any task,
+#: How a person drives a browser is a property of them and their computer, not of any task,
 #: so the fit lives at MAIN under one key and every workflow uses it.
 OPERATOR = "operator"
 

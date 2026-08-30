@@ -92,7 +92,7 @@ cursor logic, not its geometry. Recorded as absent so nobody later assumes it is
 duration scaling is not its to provide. Point count rises only 39 to 46 across a 45x
 distance range, which is a property of the curve and not of a Fitts model.
 
-**human-mouse 0.1.2 is DISQUALIFIED, and the reason is the operator's machine.** It
+**human-mouse 0.1.2 is DISQUALIFIED, and the reason is the operator's computer.** It
 requires `pyautogui`, which moves the real OS cursor — the one the person is using. There
 is no second hardware pointer. Our shadow pointer exists precisely because CDP
 `Input.dispatchMouseEvent` injects into the page and never touches the OS cursor. A
@@ -111,6 +111,6 @@ What it does not give stays ours and is named here so it is not assumed: **overs
 timing and its distance scaling (M4), and seeding (M6)**. Those are the caller's, and the
 landing point within the target (M3) always was.
 
-**The cost, stated plainly:** a Node runtime in the BROWSER machine's path. That is real
+**The cost, stated plainly:** a Node runtime in the BROWSER driver's path. That is real
 operational weight for pure geometry, and it is accepted because the measurement above
 shows our geometry is wrong in a way that reasoning did not reveal.

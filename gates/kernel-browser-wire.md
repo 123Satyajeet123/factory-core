@@ -1,6 +1,6 @@
 # How does a cell reach the browser? SETTLED 2026-08-30, by reading both vendors.
 
-The kernel runs in its own interpreter and cannot import the BROWSER machine. A cell
+The kernel runs in its own interpreter and cannot import the BROWSER driver. A cell
 that reaches the browser some other way bypasses the guard, the kept response bodies
 and the witness — and an act nobody witnessed can never be promoted.
 
@@ -51,4 +51,4 @@ with the kept response bodies split across them. `rlm.mcp` supports `type: "http
 one Browser, one session, one evidence channel.
 
 **Not yet done:** the door is loopback-only and unauthenticated. A capability token is the
-next thing it needs, and nothing else on this machine currently listens.
+next thing it needs, and nothing else on this host currently listens.

@@ -11,7 +11,7 @@ button they actually land.
 
 Today `Hand` moves the way ghost-cursor's geometry and my chosen distributions say a
 generic person moves. That is a model of nobody. The operator's own recording is a model of
-the one human whose machine this is, and it costs nothing extra to collect because
+the one human whose computer this is, and it costs nothing extra to collect because
 `record.py` is already listening.
 
 **The principle is the same one the FACTORY runs on.** A capability comes from the record,
@@ -23,14 +23,14 @@ too, never from a constant I picked.
 What a page can measure about driving is exactly what our recorder can measure: `mousemove`
 positions and their timing, `keydown` intervals, the delay between arriving at a control
 and pressing it. We are fitting to the same signal a detector reads, on the same channel,
-from the same person on the same machine. Nothing is being guessed at.
+from the same person on the same computer. Nothing is being guessed at.
 
 ## Criteria
 
 **P1 it fits from real events, not from a questionnaire.** Parameters are estimated from
 recorded pointer and key events. If a run has no recording, the defaults stand.
 
-**P2 it fits per person, and per machine.** Trackpad and mouse produce different
+**P2 it fits per person, and per computer.** Trackpad and mouse produce different
 distributions and so do different people. The fit is scoped, and the scope is the operator.
 
 **P3 it degrades honestly.** Too few samples must leave the defaults in place rather than
@@ -97,10 +97,10 @@ the honest degradation. The fit itself is unproven until a person demonstrates s
 
 **P2 now has a home, and the round trip runs.** `memory/` holds three tiers with
 inheritance down and elevation up, and the fitted pace lives at MAIN under one key, because
-how somebody drives a browser belongs to them and their machine rather than to any task:
+how somebody drives a browser belongs to them and their computer rather than to any task:
 
     main: pace fitted from 199 gaps, kept at MAIN, recalled as (0.255, 0.353)
 
 The default is `(0.05, 0.16)`, so what came back is the fit and not the constant.
-`factory/main.py` is the only module that knows both machines exist; `browser/pace.py`
+`factory/main.py` is the only module that knows both drivers exist; `browser/pace.py`
 imports no memory and `memory/` imports no browser.

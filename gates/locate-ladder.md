@@ -137,7 +137,7 @@ page is the thing that was demonstrated — the one part of this that is not plu
 *The witness does not need the control.* On a canvas grid a cell may never be addressable,
 and the effect of acting on it is still confirmable on a channel that did not act. An
 unaddressable control is not an unverifiable act, which is why locate and witness are
-separate machines rather than one perception layer.
+separate drivers rather than one perception layer.
 
 *Resolution is memory, and this is where the cost goes back down.* Rung 1 costs a model
 call the first time. Once it resolves and a witness confirms, the resolution is stored

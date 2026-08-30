@@ -39,7 +39,7 @@ class Browser:
         """`pace` is where a fit of the operator's own rhythm arrives.
 
         It is operator-scope rather than workflow-scope: how somebody drives a browser is a
-        property of them and their machine. With none supplied the defaults stand, and the
+        property of them and their computer. With none supplied the defaults stand, and the
         driver neither knows nor cares which it got.
         """
         attached = await session.attach(cdp_url)

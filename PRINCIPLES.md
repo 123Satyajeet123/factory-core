@@ -168,7 +168,7 @@ and until it exists, "kept only while it pays for itself" is a claim with no mec
     uv sync && npm ci && uv run factory vendors sync
 
 Every language's dependencies install from a committed lockfile. A working tree that builds
-on one machine and not another is a bug in the manifest, not in the machine.
+on one computer and not another is a bug in the manifest, not in the computer.
 
 ---
 

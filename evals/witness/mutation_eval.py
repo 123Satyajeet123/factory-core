@@ -1,4 +1,4 @@
-"""Can this machine be made to confirm something that did not happen?
+"""Can this driver be made to confirm something that did not happen?
 
     uv run python -m evals.witness.mutation_eval
 
@@ -96,7 +96,7 @@ def main() -> int:
         print(f"{'ok  ' if ok else 'FAIL'} {name:34} {receipt.verdict:<13} "
               f"{receipt.why[:44]}")
 
-    #: W7's control, aimed at this suite rather than at the machine. If admitting a reader
+    #: W7's control, aimed at this suite rather than at the driver. If admitting a reader
     #: that confirms whatever it is asked does NOT raise FALSE CONFIRMED, the suite is
     #: decoration and every number above it is worthless.
     caught = sum(

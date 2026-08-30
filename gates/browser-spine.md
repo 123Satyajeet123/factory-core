@@ -33,7 +33,7 @@ CDP client we are not fenced away from**.
   slow page, which is one exception meaning three things. We need a typed refusal, and we
   already have one.
 - pydoll's `stop()` terminated a browser it had only attached to. Disqualifying for a
-  machine whose premise is the person's own browser.
+  driver whose premise is the person's own browser.
 - Per-op: browser-use 0.4ms, playwright 9.6ms, over 50 operations.
 
 ## Criteria
@@ -114,7 +114,7 @@ it is not. On three things that were measured:
   fetch at all**. browser-use must build a tree every time just to match. Rung 0 is the path
   every step of every row takes.
 - **S7.** Two runtime dependencies against thirty-six. browser-use brings `anthropic`,
-  `google-genai`, `google-api-python-client`, an SDK and telemetry into a machine that
+  `google-genai`, `google-api-python-client`, an SDK and telemetry into a driver that
   never calls a model.
 - **The independent bake-off.** `~/Projects/stealth/factory/BROWSER.md` measured browser-use
   failing role-and-name addressing and the painted label across five candidates. Its B4b is
@@ -124,7 +124,7 @@ it is not. On three things that were measured:
 passes S2 and S3. It is an agent framework being asked for a job it was not built for, and
 the job is smaller than the framework.
 
-**A consequence worth stating: the BROWSER machine becomes tier 1.** With browser-use the
+**A consequence worth stating: the BROWSER driver becomes tier 1.** With browser-use the
 one seam file was `bodies.py`, subclassing `BaseWatchdog`. Playwright needs no extension
 point for any of it — attach, resolve, CDP, bodies are all plain documented API. The tree
 now has **no vendor seam at all**, which is the shallowest tier that works, and the rule
@@ -148,7 +148,7 @@ Measured after the decision, before the migration:
 **Raw CDP resolves role and name, and returns the `backendDOMNodeId` the guard needs.**
 Playwright's `get_by_role` is faster at 1 ms and returns a handle, not a node id. Bridging a
 handle to a node id means marking the element — a DOM mutation a `MutationObserver` sees —
-which costs the one claim this machine's stealth rests on. A round trip to avoid that is
+which costs the one claim this driver's stealth rests on. A round trip to avoid that is
 cheap; a mutation is not.
 
 **So the S3 plank of the decision above is withdrawn.** Rung 0 is not 1 ms via a locator; it
@@ -186,11 +186,11 @@ it to the input.
 SAFETY 0 over an empty set. F3 at rung 0 and L1 through the chooser both landed, both after
 travelling, both on a drawn landing point.
 
-**L1 failed once on the way and the fault was the stub, not the machine.** The accessibility
+**L1 failed once on the way and the fault was the stub, not the driver.** The accessibility
 tree carries StaticText children, so `button 'target'` and `statictext 'target'` both
 contain the name and a substring match found two and refused. Correct behaviour from a
 naive chooser; the stub now matches a whole description.
 
-**The BROWSER machine is tier 1.** No extension point, no patch, no seam file. Playwright
+**The BROWSER driver is tier 1.** No extension point, no patch, no seam file. Playwright
 for attach, transport, page lifecycle and bodies; CDP for resolution and dispatch;
 ghost-cursor for path geometry; the guard, the hand and the witness ours.

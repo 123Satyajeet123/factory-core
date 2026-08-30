@@ -27,7 +27,7 @@ from typing import Any
 from factory.browser.driver import Browser
 from factory.core.workflow import Target
 
-#: Loopback only. A door reachable from another machine is not a door, it is a hole.
+#: Loopback only. A door reachable from another host is not a door, it is a hole.
 HOST = "127.0.0.1"
 
 
