@@ -103,6 +103,24 @@ def supplied(workflow: Workflow, row: Mapping[str, str],
     return reading, None
 
 
+def _witnessed(memory: Any, step: Step, workflow: str, run_id: str,
+               receipt: Any) -> None:
+    """Tell memory what the witness said about the resolution this step used."""
+    from factory.core.contract import Verdict
+    from factory.core.memory import Kind, Tier
+
+    if receipt.verdict is Verdict.UNVERIFIABLE:
+        #: Nothing was checked, which is not the same as nothing being wrong. An
+        #: unverifiable act moves neither side, and `witness/coverage.py` counts it.
+        return
+    entry = memory.at(Kind.TARGET, select.asked_about(step, workflow),
+                      Tier.EXECUTION, run_id or workflow)
+    if entry is None:
+        return
+    caused = bool(step.contract and step.contract.identifies)
+    memory.witnessed(entry, receipt.verdict is Verdict.CONFIRMED, caused=caused)
+
+
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
                *, witness: Any = None, memory: Any = None,
                authority: Any = None, chooser: Any = None, run_id: str = "") -> Run:

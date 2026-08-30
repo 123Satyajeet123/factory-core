@@ -124,6 +124,17 @@ class Memory:
         self.remember(entry.kind, entry.key, entry.value, tier=narrower, scope=entry.scope)
         return self.at(entry.kind, entry.key, narrower, entry.scope)
 
+    def every(self, kinds: tuple[Kind, ...] | None = None) -> list[Entry]:
+        """Every entry held, for a pass that reads them all rather than one at a time."""
+        if kinds:
+            marks = ",".join("?" * len(kinds))
+            rows = self._db.execute(
+                f"SELECT * FROM entry WHERE kind IN ({marks})",
+                tuple(str(k) for k in kinds)).fetchall()
+        else:
+            rows = self._db.execute("SELECT * FROM entry").fetchall()
+        return [_row(row) for row in rows]
+
     def forget(self, entry: Entry) -> None:
         self._db.execute(
             "DELETE FROM entry WHERE kind=? AND tier=? AND scope=? AND key=?",
