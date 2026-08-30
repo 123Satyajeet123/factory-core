@@ -20,9 +20,21 @@ dependencies = [
 [project.scripts]
 factory = "factory.main:main"
 
+# Even our own reader arrives through the socket. Importing it by name inside `witness/`
+# would be a back door, and the first thing to use it would be the next reader somebody
+# was in a hurry to add.
+[project.entry-points."factory.witness.readers"]
+fetched = "factory.witness.readers.fetched:Fetched"
+
 [dependency-groups]
 dev = ["ruff", "pytest"]
-evals = ["inspect-ai"]
+# `outside-reader` is not a dependency of the product. It is a reader published from
+# outside the tree, so `evals/witness/socket_eval.py` can prove the entry point group is a
+# socket rather than a decoration.
+evals = ["inspect-ai", "outside-reader"]
+
+[tool.uv.sources]
+outside-reader = { path = "evals/witness/outside", editable = true }
 
 [tool.ruff]
 line-length = 100

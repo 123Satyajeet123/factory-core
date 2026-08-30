@@ -211,9 +211,29 @@ delta, it binds what CHANGED -- and that derivation is not built, so the gap is 
 **W4 is unbuilt.** Nothing counts unverifiable by the shape of surface that defeated it, so
 the demand signal that would say which reader to manufacture first does not exist.
 
-**W7 is half shown.** `Ladder` takes readers as an argument and the zero-reader control
-passes, but no reader has been registered from outside the tree through the entry point
-group. Until one has, "the socket is complete" is untested.
+**W7 CLOSED — 2026-08-30.** A reader published from outside `factory/` reaches a verdict
+with nothing under `witness/` edited:
+
+    discovered through the entry point group : ['fetched', 'receipted']
+    admissible, best evidence first          : ['receipted', 'fetched']
+    wire reader alone                        : unverifiable (cannot see sent_at)
+    with the outside reader admitted         : confirmed by 'receipted' on 'destination'
+    best rung refutes, lower rung is blind   : refuted by 'receipted'
+    FAULTS 0
+
+`evals/witness/outside/` is a separate package declaring an entry point, installed the way
+anything the factory manufactures will be. Installing it changed what the system can
+witness -- `sent_at` went from blindness to a verdict -- with no import added to a ladder
+and no branch on a surface kind.
+
+**And the reference reader was not registered either, which the test found.** `discover()`
+returned only the outside reader: `fetched` was reachable solely because `witness/` imported
+it by name. It now arrives through the same group, so there is no path into the ladder that
+a manufactured reader could not also take.
+
+**W8 shown in the same run.** With the best rung refuting and the rung below blind, the
+answer is REFUTED. Walking on after a refutation to find a confirmation is how a system
+talks itself into an answer, and the ladder does not.
 
 **W9 is unmeasured.** Rung 0 is free by construction -- bytes already collected -- but no
 verdict has been priced, and no bottom rung exists to price.

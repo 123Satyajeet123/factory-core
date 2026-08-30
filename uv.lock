@@ -635,6 +635,7 @@ dev = [
 ]
 evals = [
     { name = "inspect-ai" },
+    { name = "outside-reader" },
 ]
 
 [package.metadata]
@@ -656,7 +657,10 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
-evals = [{ name = "inspect-ai" }]
+evals = [
+    { name = "inspect-ai" },
+    { name = "outside-reader", editable = "evals/witness/outside" },
+]
 
 [[package]]
 name = "fastuuid"
@@ -2018,6 +2022,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/8f/73/0cbdebcb4cf545fdd
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a6/0e/49df70d9b81fb5cbae4bbf2a49d865b09bcbcbc4eb53f5851b1027738d78/opentelemetry_semantic_conventions-0.65b0-py3-none-any.whl", hash = "sha256:1cacde7b0ad306f84c5ef08c3dbe1bbaf20165bba6f8bff43b670e555a086bcb", size = 204645, upload-time = "2026-07-16T15:25:30.688Z" },
 ]
+
+[[package]]
+name = "outside-reader"
+version = "0.1.0"
+source = { editable = "evals/witness/outside" }
 
 [[package]]
 name = "packaging"

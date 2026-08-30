@@ -1,0 +1,17 @@
+# A reader that lives OUTSIDE the tree, to prove the socket is one.
+#
+# Nothing under factory/witness/ is edited to admit it: no import, no list entry, no branch
+# on a surface kind. This is also the shape capability/publish.py writes, so a reader the
+# factory manufactures arrives exactly this way.
+[project]
+name = "outside-reader"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.entry-points."factory.witness.readers"]
+receipted = "outside_reader:Receipted"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
