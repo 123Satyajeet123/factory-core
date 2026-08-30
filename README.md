@@ -79,10 +79,14 @@ on it.
 1. `core/` imports no machine; machines import `core/` types.
 2. Every machine is replaceable behind its `machine.py` — which is what makes six
    independent eval suites mean anything.
-3. **No seam files.** Every vendor is used through documented API. `model/router.py` is
+3. **No machine knows a destination.** `uv run python -m evals.agnostic` fails the tree if
+   any file under `factory/` names a host, a selector or a product. Procedures over a
+   destination are capabilities, and capabilities come from evidence through
+   `capability/` — never from a file somebody wrote.
+4. **No seam files.** Every vendor is used through documented API. `model/router.py` is
    the only strategy subclass in the tree. An `extend/`-shaped folder appearing means we
    have gone deeper than tier 2 somewhere, and that needs a gate before it needs code.
-4. **Order by truth is fixed; order by cost is learned.** `witness/ladder.py` is ordered
+5. **Order by truth is fixed; order by cost is learned.** `witness/ladder.py` is ordered
    by evidence quality and does not move. `run/select.py` is ordered by cost, which is an
    empirical claim about this step on this surface, so it is scored on outcomes.
 

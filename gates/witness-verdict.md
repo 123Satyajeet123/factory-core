@@ -13,6 +13,18 @@ checking fields against a contract, and ranking evidence — and the first two h
 maintained suppliers in every language. "Ours" may still be the answer for the third. It
 has to be measured to be claimed.
 
+## Scope: what is machinery here, and what is product
+
+The machinery is the socket, the contract, the ladder, the refusal, and the suite that
+admits or rejects an occupant. **Readers are product.** A reader per surface is the same
+mistake as a capability per workflow: it is the factory's output, and hand-writing one is
+the factory doing by hand the job it exists to do.
+
+`fetched.py` is a reference implementation, kept because something must pass the suite
+before the suite means anything — not because WIRE deserved a hand-written reader and DOM
+deserves the next one. If this machine ends with one reader per surface kind, each written
+by a person, then perception was never extendable and W4's number will say so.
+
 ## What is already established here, so it is not re-litigated
 
 - **The thesis is measured, in this tree, by accident.** `machine.type()` returned
@@ -75,25 +87,42 @@ first for the second.
 returns `unverifiable`. It never falls back to a weaker signal silently, and it never
 returns `confirmed` on a partial read.
 
-**W4 unverifiable is counted, not swallowed.** The fraction of acts the system could not
-witness is reported per run. It is the ceiling on promotion, which is the ceiling on
-cheapness, which is the product claim — and it is currently invisible because `unverifiable`
-moves neither side of the Wilson arithmetic.
+**W4 unverifiable is counted, and the count is a demand signal.** The fraction of acts the
+system could not witness is reported per run, broken down by the shape of surface that
+defeated it. It is the ceiling on promotion, which is the ceiling on cheapness, which is the
+product claim — and it is currently invisible because `unverifiable` moves neither side of
+the Wilson arithmetic.
+
+Counted by shape, it is also the outgoing edge `unverifiable` does not have today: the
+surface that blocks the most acts is the reader worth manufacturing first. A number nothing
+consumes is a number nobody acts on.
 
 **W5 a no-op cannot be confirmed.** A step that does nothing, against a contract that binds
 real fields, must come back refuted or unverifiable — never confirmed. This is the inverted
 filter, and it is the criterion most likely to be quietly failed.
 
-**W6 the reader knows no site.** A reader binds on shape, never on a selector, a URL or a
-field name a person chose. `fetched.py` is the standard: lists of objects with shared keys
-in a structured body, CSV as a fallback, and it derives what it can see so blind refuses
-rather than guesses.
+**W6 the suite admits a reader; a person does not.** "Knows no site" — binds on shape, never
+on a selector, a URL or a field name a person chose — is not a rule someone follows while
+writing one. It is what `evals/witness` refuses to admit, applied to every reader equally
+and without caring who or what produced it. `fetched.py` is the reference implementation and
+must pass the same suite as anything manufactured later.
 
-**W7 order by truth does not move.** The ladder is ordered by evidence quality. A lower rung
+**W7 the socket is complete without editing `witness/`.** Tested by registering a reader
+from outside the tree and having it reach a verdict — no import added to a ladder, no branch
+on a surface kind, no entry in a list. A socket that needs a hand-edit to accept its next
+occupant is not a socket, and perception stops being extendable at exactly the point the
+machine exists to extend it.
+
+Corollary, and it is the whole reason this criterion outranks coverage: the suite must run
+green with **zero readers registered** — every act `unverifiable`, W4's number at 100% — and
+must fail if a synthetic reader that confirms everything is admitted. That is the empty
+scaffold control from `gates/benchmarks.md`, aimed at perception instead of skills.
+
+**W8 order by truth does not move.** The ladder is ordered by evidence quality. A lower rung
 never overrides a higher one, and the order is not scored on outcomes — that is `run/select`,
 which is a different question with a different answer.
 
-**W8 what a verdict costs.** Rung 0 must be free: bytes already collected for another reason.
+**W9 what a verdict costs.** Rung 0 must be free: bytes already collected for another reason.
 The bottom rung is a model call and is priced. Reported per verdict, because "cheapness
 bought by checking less is not improvement" cuts both ways — so does confidence bought by
 paying for a model on every step.

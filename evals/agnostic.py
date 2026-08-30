@@ -1,0 +1,59 @@
+"""Does any machine know a destination?
+
+    uv run python -m evals.agnostic
+
+The factory is supposed to build the things a workflow needs. Machinery that names a site,
+a selector or a procedure has quietly done that job by hand, and it will keep working on
+the one destination somebody had in mind while silently being useless on the next.
+
+This is mechanical rather than a matter of judgement, because the failure looks reasonable
+every single time it happens.
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+MACHINES = Path(__file__).resolve().parents[1] / "factory"
+
+#: A hostname that is not this machine. Loopback is how a fixture is served.
+HOST = re.compile(r"\bhttps?://(?!127\.0\.0\.1|localhost)[a-z0-9.-]+\.[a-z]{2,}", re.I)
+#: A CSS or XPath selector rooted at an id or class -- per-destination knowledge in code.
+#: The whole string must be the selector. An earlier version matched a quote followed by a
+#: dot, so `".strip()` and `" ".join(...)` both read as class selectors: the check reported
+#: two offences on its first run and both were its own.
+SELECTOR = re.compile(r"""(["'])\s*(?:[#.][A-Za-z][\w .#>:\[\]=-]*|//[a-z]+\[)\1""")
+#: A name a person would recognise as a product rather than as a mechanism.
+NAMED = re.compile(r"\b(apollo|gmail|sheets|linkedin|salesforce|hubspot|notion)\b", re.I)
+
+#: Vendor URLs in a docstring are provenance, not knowledge. A line that only cites where
+#: an idea came from is allowed to name a repository.
+CITED = re.compile(r"github\.com|arxiv\.org|primeintellect|browser-use|playwright\.dev")
+
+
+def offences(text: str, path: Path) -> list[tuple[int, str, str]]:
+    found = []
+    for number, line in enumerate(text.splitlines(), 1):
+        if CITED.search(line):
+            continue
+        for what, pattern in (("host", HOST), ("selector", SELECTOR), ("product", NAMED)):
+            if pattern.search(line):
+                found.append((number, what, line.strip()[:88]))
+    return found
+
+
+def main() -> int:
+    bad = 0
+    for path in sorted(MACHINES.rglob("*.py")):
+        for number, what, line in offences(path.read_text(encoding="utf-8"), path):
+            bad += 1
+            print(f"{path.relative_to(MACHINES.parent)}:{number}  {what:9} {line}")
+    scanned = sum(1 for _ in MACHINES.rglob("*.py"))
+    print(f"\n{scanned} machine files scanned, {bad} that know a destination (must be 0)")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
