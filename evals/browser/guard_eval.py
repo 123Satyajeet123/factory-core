@@ -25,6 +25,20 @@ from pathlib import Path
 from factory.browser import profile, session
 from factory.browser.machine import Machine
 from factory.core.evidence import Delivery
+from factory.core.workflow import Target
+
+
+def picks(fragment: str):
+    """A stand-in for the model rung.
+
+    Deliberately dumb: it matches on the candidate descriptions the driver offers, which is
+    the same input a model would get. It knows no selector and no id, so a rung that only
+    passes because this helper cheats would be visible.
+    """
+    def chooser(target: Target, among: dict[int, str]) -> int | None:
+        hits = [i for i, described in among.items() if fragment in described]
+        return hits[0] if len(hits) == 1 else None
+    return chooser
 
 #: SERVED, NOT file://. Measured: Page.navigate to a file: URL leaves the tab on
 #: about:blank, and `location.href` reads correct for an instant before it bounces back.
@@ -40,26 +54,33 @@ def serve() -> http.server.ThreadingHTTPServer:
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
 
-#: name, role, accessible name, change applied after finding, expected delivery, dispatch.
+#: name, target, chooser, change applied after finding, expected delivery, dispatch, rung.
 #: A `None` delivery means any refusal will do -- the claim is that nothing was sent.
-CASES: tuple[tuple[str, str, str, str, Delivery | None, bool], ...] = (
-    ("F1 impostor swap", "button", "target",
+CASES = (
+    ("F1 impostor swap", Target(role="button", name="target"), None,
      "const n=document.createElement('button');n.id='target';"
      "document.getElementById('target').replaceWith(n);",
-     Delivery.OFF_TARGET, False),
-    ("F2 consent overlay", "button", "target",
+     Delivery.OFF_TARGET, False, "structural"),
+    ("F2 consent overlay", Target(role="button", name="target"), None,
      "document.getElementById('veil').style.display='block';",
-     Delivery.INTERCEPTED, False),
-    ("F3 label for hidden input", "checkbox", "styled checkbox", "",
-     Delivery.TARGET_HIT, True),
-    ("F4 target off viewport", "button", "target",
+     Delivery.INTERCEPTED, False, "structural"),
+    ("F3 label for hidden input", Target(role="checkbox", name="styled checkbox"),
+     picks("checkbox"), "", Delivery.TARGET_HIT, True, "chosen"),
+    ("F4 target off viewport", Target(role="button", name="target"), None,
      "document.getElementById('target').style.position='fixed';"
      "document.getElementById('target').style.top='-500px';",
-     Delivery.OFF_TARGET, False),
-    ("H2 leaves on hover", "button", "skittish", "", None, False),
+     Delivery.OFF_TARGET, False, "structural"),
+    ("H2 leaves on hover", Target(role="button", name="skittish"), None,
+     "", None, False, "structural"),
     # A limit: display:none has no box, so nothing can be located or pressed. Reaching it
     # through its painted label is locate's problem, not the guard's.
-    ("F5 boxless input", "checkbox", "boxless checkbox", "", None, False),
+    ("F5 boxless input", Target(role="checkbox", name="boxless checkbox"), None,
+     "", None, False, "structural"),
+    # L6: rung 0 refuses two matches rather than taking the first, and the chooser -- given
+    # only the descriptions the driver offers -- settles it. This is also the only case in
+    # the suite that is expected to actually press something.
+    ("L1 ambiguity, chooser settles", Target(role="button"), picks("'target'"),
+     "", Delivery.TARGET_HIT, True, "chosen"),
 )
 
 
@@ -81,13 +102,16 @@ async def run() -> int:
         machine = await Machine.attach(url, seed=17)
         landed_on: list[tuple[float, float]] = []
 
-        for name, role, target, change, expected, should_dispatch in CASES:
+        questions = 0
+        for name, target, chooser, change, expected, should_dispatch, want_rung in CASES:
             await machine.go(FIXTURE)
             #: Navigating to the same URL does not reliably give a fresh JS context, and a
             #: counter carried between cases reports travel that belonged to the last one.
             await machine.evaluate("window.__clicks=[];window.__moves=[];0")
 
-            found = await machine.find(role, target)
+            found = await machine.find(target, chooser)
+            if found.question:
+                questions += 1
             if change:
                 await machine.evaluate(change)
 
@@ -110,15 +134,16 @@ async def run() -> int:
             if did.ok and (point := json.loads(where)):
                 landed_on.append(tuple(point))
 
-            print(f"{'ok  ' if ok else 'FAIL'} {name:26} "
+            print(f"{'ok  ' if ok else 'FAIL'} {name:30} rung={found.rung:<11} "
                   f"delivery={did.delivery:<12} acted={did.ok!s:<5} "
-                  f"moves={moves:<4} {did.detail[:34]:<34} page_saw={clicks}")
+                  f"moves={moves:<4} {did.detail[:30]:<30} saw={clicks}")
+            del want_rung
 
         # M3 end to end: press the same control repeatedly and see where it lands.
         await machine.go(FIXTURE)
         await asyncio.sleep(0.5)
         for _ in range(4):
-            await machine.click("button", "target")
+            await machine.click(Target(role="button", name="target"))
         spots = json.loads(await machine.evaluate(
             "JSON.stringify(window.__moves.slice(-1)[0] || [])"))
         del spots
@@ -134,6 +159,7 @@ async def run() -> int:
     print(f"LIVENESS refused when it should have dispatched  : {liveness}")
     print(f"SHAPE    presses that arrived without travel     : {shape}   (must be 0)")
     print(f"M3       distinct aim points out of 20           : {len(aims)}")
+    print(f"L6       refusals that produced a question       : {questions}")
     return 1 if safety or liveness or shape else 0
 
 

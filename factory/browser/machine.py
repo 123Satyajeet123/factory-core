@@ -18,6 +18,8 @@ from factory.browser import locate, session
 from factory.browser.guard import press as press_guarded
 from factory.browser.hand import Hand
 from factory.core.evidence import Delivery, Did, Exchange
+from factory.core.machines import Chooses
+from factory.core.workflow import Target
 
 
 class Machine:
@@ -47,11 +49,31 @@ class Machine:
         return self._cdp.session_id
 
     async def see(self) -> dict[int, Any]:
-        """Every interactive element the vendor could serialise."""
-        return await locate.visible(self._live)
+        """The candidate set: every interactive element the vendor could serialise.
 
-    async def find(self, role: str, name: str) -> locate.Found:
-        return await locate.locate(self._live, role, name)
+        Fetching candidates is the driver's job and matching them is `locate`'s, so locate
+        holds no session and can be exercised without a browser.
+        """
+        state = await self._live.get_browser_state_summary(include_screenshot=False)
+        return dict(state.dom_state.selector_map)
+
+    async def find(self, target: Target, chooser: Chooses | None = None) -> locate.Found:
+        """Rung 0, then the chooser, then a question. Descends only on a miss.
+
+        The chooser is the model, and it is optional: with none supplied the driver still
+        works and still says why it could not proceed, rather than pretending it can.
+        """
+        nodes = await self.see()
+        found = locate.among(nodes, target)
+        if found or chooser is None:
+            return found
+
+        picked = chooser(target, found.among)
+        if picked is None or picked not in nodes:
+            return found
+        return locate.Found(backend_node_id=nodes[picked].backend_node_id,
+                            rung="chosen", why=f"chose {found.among[picked]}",
+                            among=found.among)
 
     async def go(self, url: str, *, settle: float = 15.0) -> Did:
         """Navigation, checked rather than assumed, and waited for rather than hoped.
@@ -81,16 +103,18 @@ class Machine:
         """
         if not found:
             return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why)
+
         landed = await press_guarded(self._client, self._session, found.backend_node_id,
                                      hand=self.hand)
         await self.hand.rest()
         return Did(ok=landed.dispatched, delivery=landed.delivery,
                    value=str(landed.moves),
-                   detail="pressed" if landed.dispatched else f"refused: {landed.why}")
+                   detail=f"pressed via {found.rung}" if landed.dispatched
+                          else f"refused: {landed.why}")
 
-    async def click(self, role: str, name: str) -> Did:
+    async def click(self, target: Target, chooser: Chooses | None = None) -> Did:
         """Find it and press it."""
-        return await self.press(await self.find(role, name))
+        return await self.press(await self.find(target, chooser))
 
     async def type(self, text: str) -> Did:
         """Key by key, into whatever holds focus, the way a keyboard delivers it."""

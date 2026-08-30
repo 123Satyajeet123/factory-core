@@ -65,9 +65,47 @@ Question — which is the mechanism by which this system learns a destination at
 Adding a rung that works by knowing this fixture. A rung that needs `#real` written down
 has not solved anything; it has moved the problem into our source.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    ok   F1 impostor swap             rung=structural  off_target   acted=False moves=0
+    ok   F2 consent overlay           rung=structural  intercepted  acted=False moves=77
+    FAIL F3 label for hidden input    rung=structural  not_probed   acted=False moves=1
+    ok   F4 target off viewport       rung=structural  off_target   acted=False moves=12
+    ok   H2 leaves on hover           rung=structural  intercepted  acted=False moves=59
+    ok   F5 boxless input             rung=structural  not_probed   acted=False moves=1
+    ok   L1 ambiguity, chooser settles rung=chosen     target_hit   acted=True  moves=52  saw=['target']
+
+    SAFETY 0   LIVENESS 1   SHAPE 0   M3 20/20   L6 questions produced: 2
+
+**L3 holds and L1 proves it is not just refusing.** `Target(role="button")` matches two
+controls. Rung 0 refuses rather than taking the first, the chooser is handed only the
+descriptions the driver offers, it settles on one, and the press lands — the page reports
+`['target']` after 52 moves. **This is the first dispatch in any run of this suite**, so
+`SAFETY 0` and `SHAPE 0` are no longer statements about an empty set.
+
+**L4 holds.** Every line reports the rung that answered. `chosen` and `structural` are
+distinguishable downstream, which is what lets a later run learn that this step needed the
+expensive rung.
+
+**L6 holds.** Two refusals produced a Question carrying the candidates that were on offer,
+rather than a None.
+
+**F3 fails, and the diagnosis is now complete.** Rung 0 misses; the chooser is offered the
+candidate set and also misses — because the set does not contain the control:
+
+    button 'target'   labeltext ''   labeltext ''   button 'skittish'
+
+No rung that chooses among candidates can find a control that is not a candidate. The
+missing capability is the **candidate set**, not the choosing.
+
+**The blind prediction is UNTESTED, and the probe that would have tested it was mine and
+was broken.** `DomService.get_dom_tree` takes a `target_id` and I called it without one, so
+the run hung and told us nothing. The prediction stands unverified: that the input is in
+the platform's tree and it is the vendor's interactive FILTER that drops it. Until that is
+run, "widen the candidate set" is a direction and not a finding.
+
+**Deliberately not done:** making F3 pass by teaching a rung about `#real`. That would move
+the problem into our source, which the gate names as the dishonest outcome.
 
 ## Amendment — 2026-08-30, before any code, and the original above is left standing
 

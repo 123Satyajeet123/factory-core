@@ -47,3 +47,28 @@ why     = "induce_program and effect mining. Tier 1, not 3: three modules import
 # Stagehand for being TypeScript, Skyvern for AGPL over a network. Language and
 # licensing are no longer constraints here. Criteria go in a gate before either is
 # read again; neither gets a row until one is decided.
+
+# --- npm. Reached by spawn, not import, which is why `use` exists and why a gate that
+# --- inspects imports cannot see these. Installed by `npm ci` from package-lock.json.
+
+[[vendor]]
+name    = "ghost-cursor"
+tier    = 1
+use     = "spawn"
+url     = "https://github.com/Xetera/ghost-cursor"
+rev     = "v1.4.2"
+path    = "node_modules/ghost-cursor"
+license = "ISC"
+imports = ""
+why     = "pointer path geometry, over browser/motion.js. Adopted on M1 in gates/pointer-motion.md: ours put the velocity peak at 100% of the path, so the pointer accelerated into its target. M2 overshoot, M4 timing and M6 seeding are ABSENT here and stay in hand.py -- recorded so they are not assumed present"
+
+[[vendor]]
+name    = "botd"
+tier    = 4
+use     = "read"
+url     = "https://github.com/fingerprintjs/botd"
+rev     = "v2.0.0"
+path    = "node_modules/@fingerprintjs/botd"
+license = "MIT"
+imports = ""
+why     = "the MEASURING INSTRUMENT for gates/detectability.md, pinned on the same terms as a component: a detector whose version moves silently makes every number it produced irreproducible"
