@@ -102,6 +102,10 @@ class Browser:
         never went.
         """
         await self._at.page.goto(url, wait_until="load")
+        #: A PERSON READS A PAGE BEFORE TOUCHING IT. Without this the first act on a new
+        #: surface arrives milliseconds after it finished loading, which is the shape of
+        #: every act-to-act gap a behavioural detector measures.
+        await self.hand.settle()
         landed = str(await self.evaluate("location.href") or "")
         arrived = landed.split("#")[0].rstrip("/") == url.split("#")[0].rstrip("/")
         return Did(ok=arrived, value=landed,
@@ -150,6 +154,7 @@ class Browser:
             await self.cdp.send("Input.dispatchKeyEvent",
                                 {"type": "keyUp", "key": character})
             await self.hand.rest_key()
+        await self.hand.rest()
         return Did(ok=True, value=text, exchanges=await self.fetched(),
                    detail=f"typed {len(text)} characters")
 
@@ -172,6 +177,27 @@ class Browser:
     async def fetched(self) -> list[Exchange]:
         """What the page fetched for itself since the last time this was asked."""
         return await self.bodies.drain(self.cdp)
+
+    async def next_row(self) -> None:
+        """The pause between one row of work and the next. The harness has no hand."""
+        await self.hand.next_row()
+
+    async def watch(self, into: list[Any]) -> None:
+        """Record what a PERSON does here, into `into`.
+
+        The driver installs it, because the recorder needs a page and a CDP session and
+        those are the driver's. Every caller that reached in for `_at.page` was one more
+        place that had to know how this is put together.
+        """
+        from factory.browser import record
+
+        await record.acts(self._at.page, self.cdp, into)
+
+    async def watched(self) -> Any:
+        """What the recorder saw of the pointer and the keyboard, and empties it."""
+        from factory.browser import record
+
+        return await record.drain(self._at.page)
 
     async def close(self) -> None:
         await self._at.close()

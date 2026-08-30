@@ -37,6 +37,12 @@ class Pace(BaseModel):
     dwell: tuple[float, float] = (0.06, 0.20)
     press: tuple[float, float] = (0.04, 0.11)
     rest: tuple[float, float] = (0.25, 0.90)
+    #: Landing somewhere new and reading it before acting. A person does not press a
+    #: control on a page that finished loading four milliseconds ago.
+    settle: tuple[float, float] = (0.8, 2.4)
+    #: Between one row and the next. A hundred rows at the pace of a single act is not a
+    #: person working through a list, whatever each act looks like on its own.
+    between_rows: tuple[float, float] = (1.2, 4.0)
     keystroke: tuple[float, float] = (0.05, 0.16)
 
     #: How far off centre a press may land, as a fraction of the target's box.
@@ -119,6 +125,14 @@ class Hand(BaseModel):
     async def rest(self) -> None:
         """The gap between one act and the next."""
         await asyncio.sleep(self.draw(self.pace.rest))
+
+    async def settle(self) -> None:
+        """After arriving somewhere new."""
+        await asyncio.sleep(self.draw(self.pace.settle))
+
+    async def next_row(self) -> None:
+        """Between one row of work and the next."""
+        await asyncio.sleep(self.draw(self.pace.between_rows))
 
     async def rest_key(self) -> None:
         """The gap between one keystroke and the next. Shorter than between acts."""

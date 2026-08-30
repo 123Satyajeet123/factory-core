@@ -20,7 +20,7 @@ import threading
 from pathlib import Path
 
 from factory.browser import pace as pace_mod
-from factory.browser import profile, record, session
+from factory.browser import profile, session
 from factory.browser.driver import Browser
 from factory.core.workflow import Target
 
@@ -51,13 +51,13 @@ async def run() -> int:
 
         driver = await Browser.attach(url, seed=3)
         await driver.go(f"http://127.0.0.1:{PORT}/guard.html")
-        await record.watch(driver._at.page)
+        await driver.watch([])
 
         for _ in range(6):
             await driver.click(Target(role="button", name="target"))
         await driver.type("abcdefghij")
 
-        watched = await record.drain(driver._at.page)
+        watched = await driver.watched()
         print(f"recorder saw   moves={len(watched.moves)}  keys={len(watched.keys)}  "
               f"presses={len(watched.presses)}  releases={len(watched.releases)}")
 

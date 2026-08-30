@@ -27,7 +27,7 @@ import threading
 import urllib.parse
 from pathlib import Path
 
-from factory.browser import profile, record, session
+from factory.browser import profile, session
 from factory.browser.driver import Browser
 from factory.compile.induce import binds_row, induce, workflow_of
 from factory.compile.mine import contract_of, mined
@@ -75,7 +75,7 @@ async def demonstrate(browser: Browser, who: str) -> tuple[Segment, dict]:
     """One demonstration, and the system-of-record delta it caused."""
     await browser.go(FIXTURE)
     seen: list[Act] = []
-    await record.acts(browser._at.page, browser.cdp, seen)
+    await browser.watch(seen)
 
     before = list(SAVED)
     name = Target(role="textbox", name="Name")

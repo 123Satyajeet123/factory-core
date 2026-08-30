@@ -50,7 +50,11 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
     """The whole workflow, over every row. Stops a row at its first failing step."""
     run = Run(workflow=workflow.name)
 
-    for row in rows:
+    for index, row in enumerate(rows):
+        if index:
+            #: Every act inside a row is paced; the rows themselves were not, so a hundred
+            #: of them arrived at the pace of a single act however human each one looked.
+            await browser.next_row()
         missing = workflow.missing_from(row)
         if missing:
             run.rows.append(RowRun(row=dict(row), refused=Question(

@@ -21,7 +21,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from factory.browser import profile, record, session
+from factory.browser import profile, session
 from factory.browser.driver import Browser
 from factory.core.ledger import Act, Doing
 from factory.core.workflow import Target
@@ -56,7 +56,7 @@ async def run() -> int:
         driver = await Browser.attach(url, seed=11)
         await driver.go(FIXTURE)
         seen: list[Act] = []
-        await record.acts(driver._at.page, driver.cdp, seen)
+        await driver.watch(seen)
 
         #: The third leaves the pointer on hover, so the guard refuses and nothing is
         #: dispatched. A ledger records what HAPPENED, not what was attempted -- an act the

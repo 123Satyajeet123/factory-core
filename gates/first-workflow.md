@@ -70,6 +70,28 @@ minutes of a person thinking should compile to a short program.
 Result section with what was induced beside what I wrote. A prediction that turns out wrong
 is the useful outcome; the wrong outcome is quietly editing this afterwards.
 
+## P1 settled early, by execution, before any demonstration — 2026-08-30
+
+    pages the driver knows about: 1
+    after the person opens one:   2
+    acts recorded on the first surface:  1
+    acts recorded on the second surface: 0
+       press  button 'target'
+    FAULT acts on a second surface are not recorded at all
+          and the driver is still bound to the first page it was given
+
+**Confirmed, and it is the blocking defect.** The act on the second surface really happened
+-- the server logged its request -- and the ledger has no trace of it. `record.acts`
+installs a binding on ONE page, and `session.attach` takes `context.pages[0]` and keeps it.
+
+A workflow across five surfaces would record one fifth of itself and compile a program that
+looks complete. That is worse than failing: the missing four fifths leave no evidence they
+were missing.
+
+**So the command in this file is not yet worth running on the real task.** A demonstration
+recorded today would be wrong in a way the compiler cannot see, and the induced program
+would be confidently short.
+
 ## Result
 
 (filled in after a demonstration — not before)

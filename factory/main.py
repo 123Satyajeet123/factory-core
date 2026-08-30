@@ -41,7 +41,7 @@ async def learn_pace(memory: Memory, browser: Browser) -> pace_fitting.Fitted:
     Only ever called on a demonstration. Fitting to the factory's own driving would have
     the distribution converge on whatever we already do -- see gates/learned-pace.md.
     """
-    fitted = pace_fitting.fit(await record.drain(browser._at.page),
+    fitted = pace_fitting.fit(await browser.watched(),
                               over=remembered_pace(memory))
     memory.remember(Kind.PACE, OPERATOR, fitted.pace.model_dump(), tier=Tier.MAIN)
     return fitted
@@ -63,7 +63,7 @@ async def demonstrate(task: str, *, port: int = 9222) -> Path:
     one they performed. That is what makes the segment admissible for induction and for
     fitting a pace, both of which forbid the factory learning from its own driving.
     """
-    from factory.browser import profile, record, session
+    from factory.browser import profile, session
     from factory.browser.driver import Browser
     from factory.core.ledger import Act, Segment, Whose
     from factory.store import ledger
@@ -81,7 +81,7 @@ async def demonstrate(task: str, *, port: int = 9222) -> Path:
 
     browser = await Browser.attach(url)
     seen: list[Act] = []
-    await record.acts(browser._at.page, browser.cdp, seen)
+    await browser.watch(seen)
 
     print(f"recording {task!r} -- do the task in the browser, then press Enter here.")
     await asyncio.to_thread(input)
