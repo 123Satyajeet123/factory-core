@@ -164,3 +164,33 @@ hand-rolling a transport.
 
 **Ambiguity comes free.** `queryAXTree` with a role and no name returns both buttons, so
 rung 0's refusal on two-plus is the platform's answer rather than our arithmetic.
+
+## Migration verified — 2026-08-30, the whole suite on the new spine
+
+    ok  F1 impostor swap              rung=accessible  off_target   acted=False moves=0
+    ok  F2 consent overlay            rung=accessible  intercepted  acted=False moves=28
+    ok  F3 label for hidden input     rung=accessible  target_hit   acted=True  moves=70  saw=['paint','real']
+    ok  F4 target off viewport        rung=accessible  off_target   acted=False moves=79
+    ok  H2 leaves on hover            rung=accessible  intercepted  acted=False moves=76
+    ok  F5 boxless input              rung=accessible  not_probed   acted=False moves=0
+    ok  L1 ambiguity, chooser settles rung=chosen      target_hit   acted=True  moves=62  saw=['target']
+
+    SAFETY 0   LIVENESS 0   SHAPE 0   M3 20/20   L6 questions: 1
+
+**F3 is the case that motivated the migration and it now passes at rung 0.** The control
+browser-use's serialisation omitted resolves through `Accessibility.queryAXTree`, and the
+page confirms `['paint','real']` — the press landed on the label and the browser forwarded
+it to the input.
+
+**Two dispatches, so the zeroes mean something.** Every previous green run in this suite had
+SAFETY 0 over an empty set. F3 at rung 0 and L1 through the chooser both landed, both after
+travelling, both on a drawn landing point.
+
+**L1 failed once on the way and the fault was the stub, not the machine.** The accessibility
+tree carries StaticText children, so `button 'target'` and `statictext 'target'` both
+contain the name and a substring match found two and refused. Correct behaviour from a
+naive chooser; the stub now matches a whole description.
+
+**The BROWSER machine is tier 1.** No extension point, no patch, no seam file. Playwright
+for attach, transport, page lifecycle and bodies; CDP for resolution and dispatch;
+ghost-cursor for path geometry; the guard, the hand and the witness ours.

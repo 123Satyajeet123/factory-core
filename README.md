@@ -45,7 +45,7 @@ knows no workflow and no site.
 
 | machine | converts | vendor |
 |---|---|---|
-| `browser/` | intent to acts, page to perception | browser-use, plus three patches |
+| `browser/` | intent to acts, page to perception | playwright + raw CDP + ghost-cursor |
 | `kernel/` | code to effects | prime-agent `rlm`, in its own venv |
 | `model/` | context to a typed decision | litellm + instructor |
 | `witness/` | a contract and a destination to a verdict | none — ours |
@@ -79,10 +79,9 @@ on it.
 1. `core/` imports no machine; machines import `core/` types.
 2. Every machine is replaceable behind its `machine.py` — which is what makes six
    independent eval suites mean anything.
-3. **One seam file.** `browser/bodies.py` is the only code that attaches to a vendor
-   object, and `model/router.py` the only strategy subclass. Everything else uses a
-   vendor or conforms to its format. A second `extend/`-shaped folder appearing means
-   we have gone to tier 3 somewhere, and that needs a gate before it needs code.
+3. **No seam files.** Every vendor is used through documented API. `model/router.py` is
+   the only strategy subclass in the tree. An `extend/`-shaped folder appearing means we
+   have gone deeper than tier 2 somewhere, and that needs a gate before it needs code.
 4. **Order by truth is fixed; order by cost is learned.** `witness/ladder.py` is ordered
    by evidence quality and does not move. `run/select.py` is ordered by cost, which is an
    empirical claim about this step on this surface, so it is scored on outcomes.
