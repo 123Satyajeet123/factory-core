@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>things we might not see</title>
+<style>#tall{height:1400px}#frame{width:320px;height:90px}</style>
+
+<button id="plain">plain</button>
+<select id="pick" aria-label="Pick one"><option>alpha</option><option>beta</option></select>
+<input id="typed" aria-label="Typed">
+<button id="dialogue">ask something</button>
+<button id="broken">fetch something missing</button>
+<button id="throws">throw</button>
+<iframe id="frame" src="inner.html"></iframe>
+<div id="tall">scroll me</div>
+
+<script>
+  window.__saw = [];
+  const note = (what) => window.__saw.push(what);
+  addEventListener('scroll', () => note('scroll'), true);
+  addEventListener('keydown', e => note('key:' + e.key), true);
+  document.getElementById('pick').addEventListener('change', e => note('select:' + e.target.value));
+  document.getElementById('dialogue').addEventListener('click', () => { note('dialog'); confirm('go on?'); });
+  document.getElementById('broken').addEventListener('click', () => { note('fetch'); fetch('/nothing-here.json'); });
+  document.getElementById('throws').addEventListener('click', () => { note('throw'); setTimeout(() => { throw new Error('a page error'); }, 0); });
+</script>
