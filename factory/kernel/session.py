@@ -23,6 +23,7 @@ from typing import Any
 
 from factory.kernel import protocol, venv
 from factory.kernel.protocol import Cell, Status
+from factory.kernel.tools import Bridge
 
 
 class KernelError(RuntimeError):
@@ -32,7 +33,10 @@ class KernelError(RuntimeError):
 class Session:
     """A live runtime. Not reusable once closed."""
 
-    def __init__(self) -> None:
+    def __init__(self, bridge: Bridge | None = None) -> None:
+        #: With no bridge a cell can still run code; it just cannot name a server, because
+        #: every `mcp.config` request is refused. Absent is a state, never a stub.
+        self._bridge = bridge or Bridge()
         self._process: subprocess.Popen[str] | None = None
         self._frames: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._ids = itertools.count(1)
@@ -67,7 +71,21 @@ class Session:
                 frame = json.loads(line)
             except ValueError:
                 continue  # the runtime answers a malformed line itself; ours cannot be one
-            loop.call_soon_threadsafe(self._frames.put_nowait, frame)
+            loop.call_soon_threadsafe(self._deliver, frame)
+
+    def _deliver(self, frame: dict[str, Any]) -> None:
+        """Every frame passes here, on the loop.
+
+        A `host_request` is answered from this one place rather than by whoever happens to
+        be collecting: its id is a runtime-minted uuid, not a cell id, so a collector
+        filtering on its own id would drop it and the asking cell would wait forever.
+        """
+        if frame.get("event") == "host_request":
+            answer = self._bridge.answer(frame.get("data") or {})
+            with contextlib.suppress(KernelError, OSError):
+                self._send({"type": "host_reply", "id": frame.get("id"), "data": answer})
+            return
+        self._frames.put_nowait(frame)
 
     def _send(self, request: dict[str, Any]) -> None:
         if not self._process or self._process.poll() is not None:

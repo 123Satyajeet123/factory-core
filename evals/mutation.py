@@ -36,6 +36,7 @@ class Mutation:
     #: The claim that should stop holding. Named so a survivor says what is untested.
     invalidates: str
     module: str
+    #: Dotted from the module, so a method on a class is reachable: `Bridge._config`.
     attribute: str
     replacement: object
     #: Which suites can notice this. Scoped because a suite that launches a runtime or a
@@ -51,6 +52,11 @@ def _confirms_everything(contract, reading, *, reader: str = "", channel: str = 
 def _inherits_everything(cell_env: dict[str, str] | None = None) -> dict[str, str]:
     """A kernel environment with the allowlist removed. What inheriting os.environ means."""
     return dict(os.environ)
+
+
+def _answers_for_any_server(self, data: dict[str, object]) -> dict[str, object]:
+    """A bridge that declares whatever it is asked for. What losing the registry means."""
+    return {"status": "ok", "result": {"type": "http", "url": "http://127.0.0.1:1/mcp"}}
 
 
 def _repo_on_the_path() -> dict[str, str]:
@@ -97,11 +103,26 @@ MUTATIONS = (
         module="factory.kernel.venv", attribute="environment",
         replacement=_repo_on_the_path,
         suites=("evals.kernel.kernel_eval",)),
+
+    Mutation(
+        name="the host declares any server asked for",
+        invalidates="W5, a cell reaches only what the host named",
+        module="factory.kernel.tools", attribute="Bridge._config",
+        replacement=_answers_for_any_server,
+        suites=("evals.kernel.wire_eval",)),
 )
 
 #: Where a mutation is checked when it names no suite of its own.
 SUITES = ("evals.witness.witness_eval", "evals.witness.mutation_eval")
 
+
+
+def _owner(module: object, dotted: str) -> tuple[object, str]:
+    """The object holding the final name, and that name. `getattr` does not walk dots."""
+    *path, name = dotted.split(".")
+    for step in path:
+        module = getattr(module, step)
+    return module, name
 
 
 def noticed(suite: str) -> bool:
@@ -123,13 +144,13 @@ def noticed(suite: str) -> bool:
 def run() -> int:
     survivors = 0
     for mutation in MUTATIONS:
-        module = importlib.import_module(mutation.module)
-        original = getattr(module, mutation.attribute)
-        setattr(module, mutation.attribute, mutation.replacement)
+        holder, name = _owner(importlib.import_module(mutation.module), mutation.attribute)
+        original = getattr(holder, name)
+        setattr(holder, name, mutation.replacement)
         try:
             caught = any(noticed(suite) for suite in (mutation.suites or SUITES))
         finally:
-            setattr(module, mutation.attribute, original)
+            setattr(holder, name, original)
 
         survivors += not caught
         print(f"{'caught  ' if caught else 'SURVIVED'} {mutation.name:38} "

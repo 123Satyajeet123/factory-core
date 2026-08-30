@@ -263,3 +263,37 @@ talks itself into an answer, and the ladder does not.
 
 **W9 is unmeasured.** Rung 0 is free by construction -- bytes already collected -- but no
 verdict has been priced, and no bottom rung exists to price.
+
+
+## Reading bytes into fields — the candidates this gate named, run 2026-08-30
+
+`readers/fetched.py` was written with a hand-rolled traversal while this gate already listed
+candidates for exactly that job. Ignoring a list one has written down is worse than not
+having made one, so it was run.
+
+    case      ours   jsonpath-ng `$..*` + our shared-key test
+    flat         2   2
+    nested       2   2
+    deep         2   2
+    cost      1 us   13 us per body
+    deps         0   1
+
+    jmespath: `**` is a syntax error -- no recursive descent, so it cannot look at
+              unknown depth at all
+    glom:     found the records only once a path was written down, which is the one
+              thing we cannot know
+    pandas:   5 deps including numpy, for a traversal
+
+**jsonpath-ng can do the traversal, and only the traversal.** With `$..*` it reaches the
+lists at any depth and returns the same records. What it cannot express is the condition
+that decides what a record set IS -- more than one object, agreeing on keys -- so that test
+stays ours either way, and the file keeps the same logic plus a dependency.
+
+**Decision: stdlib, which was on the candidate list from the start.** The traversal is ten
+lines and the judgement is the part that matters. Now measured rather than assumed, which
+is the difference between this and how it was first written.
+
+**Note on how the first run was wrong.** `$..[*]` returned 0 lists in every case and I
+nearly recorded that as jsonpath-ng failing. It yields the ELEMENTS, not the containing
+lists. The library was fine and my expression was not -- the same shape of error as the F3
+fixture that passed for the wrong reason.

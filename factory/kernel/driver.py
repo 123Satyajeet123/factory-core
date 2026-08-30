@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from factory.kernel.protocol import Cell
 from factory.kernel.session import KernelError, Session
+from factory.kernel.tools import Bridge, Door
 
-__all__ = ["Cell", "Kernel", "KernelError"]
+__all__ = ["Bridge", "Cell", "Door", "Kernel", "KernelError"]
 
 
 class Kernel:
@@ -23,9 +24,13 @@ class Kernel:
         self._session = session
 
     @classmethod
-    async def start(cls, *, timeout: float = 30.0) -> Kernel:
-        """Build the interpreter if it is missing, spawn it, and shake hands."""
-        return cls(await Session().start(timeout=timeout))
+    async def start(cls, *doors: Door, timeout: float = 30.0) -> Kernel:
+        """Build the interpreter if it is missing, spawn it, and shake hands.
+
+        Every door named here is one a cell may reach and the only ones it may reach.
+        With none, a cell runs code and can name no server at all.
+        """
+        return cls(await Session(Bridge(*doors)).start(timeout=timeout))
 
     @property
     def python(self) -> str:
