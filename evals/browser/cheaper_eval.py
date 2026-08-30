@@ -118,6 +118,37 @@ async def run() -> int:
             faults += 1
             print("FAULT a refusal was remembered as an answer")
 
+        #: THE BOTTOM RUNG. Rung 0 refuses, the model declines, and a person is asked --
+        #: once. What they said is kept exactly as a model's answer would be, so the run
+        #: after this one costs nothing.
+        class Answers:
+            def __init__(self, said: str) -> None:
+                self.said, self.asked = said, 0
+
+            def ask(self, question: object) -> str:
+                self.asked += 1
+                return self.said
+
+        forgetful = Memory()
+        declines = Counting("nothing matches this")
+        person = Answers("button 'target'")
+        await browser.go(FIXTURE)
+        asked = await select.target_for(browser, STEP, chooser=declines, authority=person,
+                                        memory=forgetful, workflow="w", run="r3")
+        print(f"asked   rung={asked.rung:<11} person={person.asked}  {asked.why}")
+
+        await browser.go(FIXTURE)
+        after = await select.target_for(browser, STEP, chooser=declines, authority=person,
+                                        memory=forgetful, workflow="w", run="r3")
+        print(f"after   rung={after.rung:<11} person={person.asked}  {after.why}")
+
+        if asked.rung != "asked" or not asked:
+            faults += 1
+            print("FAULT nobody was asked when neither rung could resolve it")
+        if after.rung != "remembered" or person.asked != 1:
+            faults += 1
+            print(f"FAULT a person was asked {person.asked} times for two runs")
+
         await browser.close()
     finally:
         proc.terminate()

@@ -15,6 +15,7 @@ paper over by treating a successful dispatch as evidence.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -27,8 +28,8 @@ from factory.run import select
 
 
 async def one_step(browser: Any, step: Step, row: Mapping[str, str], *,
-                   chooser: Any = None, memory: Any = None,
-                   workflow: str = "", run: str = "") -> tuple[Did, str]:
+                   chooser: Any = None, authority: Any = None, memory: Any = None,
+                   workflow: str = "", run: str = "") -> tuple[Did, str, float]:
     """Do one step, on one row, and say which rung answered it.
 
     RESOLUTION GOES THROUGH `run/select.py`, NOT STRAIGHT TO THE DRIVER. That is where a
@@ -38,40 +39,49 @@ async def one_step(browser: Any, step: Step, row: Mapping[str, str], *,
     The rung comes back with the act because `core/evidence.StepRun` records it: without
     that, a cheap answer and an expensive one are indistinguishable afterwards and nothing
     can say whether this is getting cheaper.
+
+    SO DOES WHAT RESOLVING COST, WHICH IS NOT WHAT THE STEP COST. A press takes seconds
+    because `browser/hand.py` paces it on purpose, and that is the same seconds whichever
+    rung answered. Pricing a rung by the whole step measures the pacing: the first real run
+    put `accessible` at 3267 ms, of which the resolution was a few. The rung is priced on
+    the resolution alone; the step's own total is recorded separately and honestly.
     """
     if step.surface and not await browser.on(step.surface):
         return Did(ok=False, delivery=Delivery.NOT_PROBED,
-                   detail=f"no single tab showing {step.surface}"), "none"
+                   detail=f"no single tab showing {step.surface}"), "none", 0.0
 
     #: Verbs that resolve nothing. No rung was descended, so none was paid for.
     if step.doing is Doing.GO:
-        return await browser.go(step.wants(row) or step.value), "none"
+        return await browser.go(step.wants(row) or step.value), "none", 0.0
     if step.doing is Doing.SCROLL:
-        return await browser.scroll(float(step.wants(row) or step.value or 0)), "none"
+        return await browser.scroll(float(step.wants(row) or step.value or 0)), "none", 0.0
     if step.doing is Doing.ANSWER:
         return await browser.answer(step.value, accept=step.wants(row) == "accept")
 
     if step.doing is Doing.KEY:
-        return await browser.key(step.wants(row) or step.value), "none"
+        return await browser.key(step.wants(row) or step.value), "none", 0.0
 
     if step.target is None:
-        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail="no target recorded"), "none"
+        return Did(ok=False, delivery=Delivery.NOT_PROBED,
+                   detail="no target recorded"), "none", 0.0
 
-    found = await select.target_for(browser, step, chooser=chooser, memory=memory,
-                                    workflow=workflow, run=run)
+    began = time.perf_counter()
+    found = await select.target_for(browser, step, chooser=chooser, authority=authority,
+                                    memory=memory, workflow=workflow, run=run)
+    resolving = time.perf_counter() - began
     if not found:
-        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why), found.rung
+        return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why), found.rung, resolving
 
     if step.doing is Doing.PRESS:
-        return await browser.press(found), found.rung
+        return await browser.press(found), found.rung, resolving
     if step.doing is Doing.SELECT:
-        return await browser.select(found, step.wants(row)), found.rung
+        return await browser.select(found, step.wants(row)), found.rung, resolving
 
     pressed = await browser.press(found)
     if not pressed.ok:
-        return pressed, found.rung
+        return pressed, found.rung, resolving
     await browser.clear()
-    return await browser.type(step.wants(row)), found.rung
+    return await browser.type(step.wants(row)), found.rung, resolving
 
 
 def supplied(workflow: Workflow, row: Mapping[str, str],
@@ -123,7 +133,8 @@ def _witnessed(memory: Any, step: Step, workflow: str, run_id: str,
 
 async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str]],
                *, witness: Any = None, memory: Any = None,
-               authority: Any = None, chooser: Any = None, run_id: str = "") -> Run:
+               authority: Any = None, chooser: Any = None, run_id: str = "",
+               prices: Any = None) -> Run:
     """The whole workflow, over every row. Stops a row at its first failing step.
 
     THREE SEAMS DOING THREE JOBS. `witness` judges what happened, `memory` HOLDS a permit,
@@ -161,15 +172,24 @@ async def over(browser: Any, workflow: Workflow, rows: Sequence[Mapping[str, str
                     done.refused = permits.asked_for(step, workflow.name)
                     break
 
-            did, rung = await one_step(browser, step, row, chooser=chooser, memory=memory,
-                                       workflow=workflow.name, run=run_id)
+            began = time.perf_counter()
+            did, rung, resolving = await one_step(browser, step, row, chooser=chooser,
+                                                  authority=authority, memory=memory,
+                                                  workflow=workflow.name, run=run_id)
+            took = time.perf_counter() - began
+            #: WHAT TURNS THE COST MODEL INTO A MEASUREMENT, and it is the RESOLUTION that
+            #: is priced. The rest of the step is pacing, which costs the same whichever
+            #: rung answered and would drown the difference the price exists to show.
+            if prices is not None and resolving > 0:
+                prices.observe(rung, resolving)
             receipt = None
             if step.contract is not None and witness is not None:
                 #: Bound to THIS row. A contract carrying the demonstration's value would
                 #: confirm every row against the record the demonstration wrote.
                 receipt = witness.witness(did, step.contract.for_row(row))
             done.steps.append(
-                StepRun(intent=step.intent, did=did, receipt=receipt, rung=rung))
+                StepRun(intent=step.intent, did=did, receipt=receipt, rung=rung,
+                        seconds=took))
             if not did.ok:
                 break
         run.rows.append(done)

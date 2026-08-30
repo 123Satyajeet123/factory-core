@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from factory.browser import locate
 from factory.browser.locate import Found
 from factory.core.memory import Kind, Tier
 from factory.core.workflow import Step, Target
@@ -30,7 +31,8 @@ def asked_about(step: Step, workflow: str) -> str:
 
 
 async def target_for(browser: Any, step: Step, *, chooser: Any = None,
-                     memory: Any = None, workflow: str = "", run: str = "") -> Found:
+                     authority: Any = None, memory: Any = None,
+                     workflow: str = "", run: str = "") -> Found:
     """Resolve this step's control as cheaply as it can be resolved today.
 
     A remembered resolution is tried FIRST and structurally, so it costs what any other
@@ -54,7 +56,23 @@ async def target_for(browser: Any, step: Step, *, chooser: Any = None,
 
     found = await browser.find(step.target, chooser)
 
-    if found and found.rung == "chosen" and found.resolved and memory is not None:
+    #: THE BOTTOM RUNG. Rung 0 could not resolve it and neither could a model, so a person
+    #: is asked -- once, with what the page actually offered. The answer is kept exactly as
+    #: a model's would be, so the run after this one costs nothing: that is the whole reason
+    #: asking is cheaper than a hardcoded answer rather than more expensive.
+    if not found and found.question is not None and authority is not None:
+        said = authority.ask(found.question)
+        picked = next((i for i, line in found.among.items() if line == said), None)
+        if picked is not None:
+            every = await browser.candidates()
+            if 0 <= picked < len(every):
+                role, name, node = locate.reads(every[picked])
+                if node is not None:
+                    found = Found(backend_node_id=node, rung="asked",
+                                  why=f"a person said {said!r}", among=found.among,
+                                  resolved=Target(role=role, name=name))
+
+    if found and found.rung in ("chosen", "asked") and found.resolved and memory is not None:
         #: EXECUTION scope, because one resolution is one observation. Widening it is
         #: `memory/promote.py`'s to do, on receipts.
         memory.remember(Kind.TARGET, key, found.resolved.model_dump(),

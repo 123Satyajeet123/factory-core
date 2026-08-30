@@ -81,6 +81,27 @@ written first; claiming I got it right would be claiming credit for the gate's w
 **R5 holds.** A chooser that declines leaves nothing. The rung came back `accessible` -- the
 structural refusal -- and memory is empty.
 
+## The bottom rung, added 2026-08-30
+
+    asked   rung=asked       person=1   a person said "button 'target'"
+    after   rung=remembered  person=1   one match
+
+Rung 0 refuses, the model declines, and a person is asked ONCE. What they said is kept
+exactly as a model's answer would be -- a `Target` of role and name -- so the run after is
+free.
+
+**That is the only reason asking is cheaper than a hardcoded answer rather than more
+expensive.** A question answered once and remembered costs a person a moment; the same
+question asked every row costs them the job, and a selector written into our source costs
+every other destination.
+
+The ladder now has four rungs and both expensive ones end in the cheap one:
+
+    structural   free      what the demonstration recorded, still there
+    chosen       a model   which of these is the one that was meant
+    asked        a person  neither could tell
+    remembered   free      either of the above, on every run after
+
 ## Not done
 
 **R6 is unbuilt.** Nothing counts how many steps took the cheap path against how many needed
