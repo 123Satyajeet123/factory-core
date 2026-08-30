@@ -62,6 +62,34 @@ class Step(BaseModel):
         return row.get(self.param, "") if self.param else self.value
 
 
+class Source(BaseModel):
+    """Where a workflow's rows come from.
+
+    A SURFACE AND A MAPPING, NEVER A CONNECTOR. `witness/readers` already finds records on
+    a destination it knows nothing about; a source is that same act pointed at a moment
+    before the run instead of after an act. A reader per destination would work on the ones
+    somebody thought of and nothing else.
+
+    Both fields are ANSWERS. They are recorded on the workflow when a person says where the
+    work comes from, which is why no driver in this tree names a destination.
+    """
+
+    #: The origin to read from, in the same words `browser/surface.py` records.
+    surface: str = ""
+    #: field in the records -> parameter the workflow needs. Extra fields are ordinary.
+    feeds: dict[str, str] = Field(default_factory=dict)
+
+    def rows_from(self, records: list[Mapping[str, str]]) -> list[dict[str, str]]:
+        """The records as rows this workflow can read, keeping only what it asked for."""
+        return [{param: record[field] for field, param in self.feeds.items()
+                 if field in record} for record in records]
+
+    def missing_from(self, records: list[Mapping[str, str]]) -> tuple[str, ...]:
+        """Fields the mapping wants that the records do not carry."""
+        offered = {key for record in records for key in record}
+        return tuple(sorted(set(self.feeds) - offered))
+
+
 class Workflow(BaseModel):
     """A body, and the parameters its rows must supply.
 
@@ -73,6 +101,9 @@ class Workflow(BaseModel):
     name: str
     steps: list[Step] = Field(default_factory=list)
     params: tuple[str, ...] = ()
+    #: Where the rows come from. Absent means a caller supplies them, which is what a
+    #: person doing it by hand looks like.
+    source: Source | None = None
 
     def missing_from(self, row: Mapping[str, str]) -> tuple[str, ...]:
         return tuple(p for p in self.params if p not in row)

@@ -20,50 +20,9 @@ difference: derived from the demonstration's delta, it binds what CHANGED.
 
 from __future__ import annotations
 
-import csv
-import io
-import json
-from typing import Any
-
 from factory.core.contract import Contract, Reading
 from factory.core.evidence import Did
 from factory.witness.channel import Channel
-
-#: A list of objects is a record set when they agree on keys. One object is not a set, and
-#: two objects sharing nothing are two things that happen to be adjacent.
-ENOUGH_SHARED = 1
-
-
-def records_in(body: Any) -> list[dict[str, str]]:
-    """Every record set anywhere in a structured body, flattened."""
-    found: list[dict[str, str]] = []
-    stack = [body]
-    while stack:
-        seen = stack.pop()
-        if isinstance(seen, dict):
-            stack.extend(seen.values())
-        elif isinstance(seen, list):
-            rows = [row for row in seen if isinstance(row, dict)]
-            shared = set.intersection(*(set(r) for r in rows)) if rows else set()
-            if len(rows) > 1 and len(shared) >= ENOUGH_SHARED:
-                found.extend({str(k): str(v) for k, v in row.items()} for row in rows)
-            elif len(rows) == 1:
-                found.append({str(k): str(v) for k, v in rows[0].items()})
-            stack.extend(item for item in seen if not isinstance(item, dict))
-    return found
-
-
-def as_records(text: str) -> list[dict[str, str]]:
-    """JSON if it parses, CSV if it does not, nothing if neither."""
-    try:
-        return records_in(json.loads(text))
-    except (ValueError, TypeError):
-        pass
-    try:
-        rows = list(csv.DictReader(io.StringIO(text)))
-    except (csv.Error, ValueError):
-        return []
-    return [{str(k): str(v) for k, v in row.items() if k} for row in rows if row]
 
 
 class Fetched:
@@ -73,10 +32,7 @@ class Fetched:
     channel = Channel.WIRE
 
     def read(self, did: Did, contract: Contract) -> Reading:
-        records: list[dict[str, str]] = []
-        for exchange in did.exchanges:
-            if exchange.body:
-                records.extend(as_records(exchange.body))
+        records = [row for exchange in did.exchanges for row in exchange.records()]
 
         readable = frozenset().union(*(set(r) for r in records)) if records else frozenset()
         wanted = set(contract.expects)

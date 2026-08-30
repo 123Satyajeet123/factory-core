@@ -61,6 +61,37 @@ question rather than a DOM scrape.
 If that holds, the coverage number already built (`paints, carries no structured body`) is
 the same signal for sources as it is for verdicts, and nothing new is needed to report it.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+    no source     rows=0  asks='nobody has said where the rows come from'
+    sends records rows=2  [{'who': 'Ada Lovelace'}, {'who': 'Grace Hopper'}]
+    paints them   rows=0  asks='the destination sent no records to read'  offered=('text/html',)
+    wrong field   rows=0  asks='the records carry no phone'  offered=('company', 'id', 'name')
+    FAULTS 0
+
+**S1 holds more strongly than the gate assumed.** No reader is passed at all.
+`Exchange.records()` carries the reading, so a witness and a source use one mechanism
+without either importing the other -- and a source needs no reader argument, only a surface
+and a mapping.
+
+**S2 holds.** `evals/agnostic` passes unchanged: the surface and the field mapping are
+values on the workflow, and no driver names a destination.
+
+**S3 and S4 hold, and the refusals carry what a person needs to answer them.** A painted
+surface offers `('text/html',)` -- the content types, which is what says which reader would
+be needed. A mapping that cannot be satisfied names the field it wanted AND the fields the
+records did carry, so the answer is a choice rather than a guess.
+
+**S5 held, and it was the blind prediction.** A surface that paints its rows has no source,
+for the same reason it has no witness: the only admissible channel is what the destination
+SENT, and it sent none. The right answer was a question, and the coverage signal already
+built for verdicts is the same signal here -- nothing new was needed to report it.
+
+## What this does not do
+
+Nothing ANSWERS these questions yet. A source that cannot be read produces a Question and
+records it; offering it to a person is the same unwired joint the permit refusal has.
+
+The mapping is not induced. A person says which field feeds which parameter; nothing yet
+proposes it from a demonstration, though the demonstration knows -- the values that varied
+came from somewhere the person looked.
