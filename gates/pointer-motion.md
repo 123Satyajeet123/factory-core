@@ -61,6 +61,56 @@ That any of this defeats a particular detector. Nothing here is measured against
 site, and a pass means "the motion has the statistical shape of a hand", never "we are
 undetectable". A claim about a real site needs a measurement against a real site.
 
-## Result
+## Result — 2026-08-30, by execution
 
-(filled in by execution — not by reasoning)
+200 paths per distance, four distances, measured on the points themselves.
+
+    candidate       dist   pts   peak@   M1            M2 overshoot   M5 unique
+    ghost-cursor      20    39     49%   peak mid              0%     200/200
+                     100    42     47%   peak mid              0%     200/200
+                     300    44     56%   peak mid              0%     200/200
+                     900    46     55%   peak mid              0%     200/200
+    ours              20    10    100%   CONSTANT              0%     200/200
+                     100    10    100%   CONSTANT              0%     200/200
+                     300    10    100%   CONSTANT              0%     200/200
+                     900    10    100%   CONSTANT              0%     200/200
+
+**Ours fails M1 in the worst available way.** The velocity peak is at 100% of the path:
+the fastest step is the last one, so the pointer *accelerates into* the target. A hand
+decelerates onto it. Equal parameter steps along a quadratic produced this, and reasoning
+about the curve would not have shown it.
+
+**Ours fails M4 outright.** Ten points whether the move is 20px or 900px.
+
+**ghost-cursor 1.4.2, ISC, deps bezier-js and debug.** `path()` imports and runs with no
+Puppeteer and no browser. M1 passes at every distance. M5 passes.
+
+**M2 is ABSENT, not passed.** `path()` never overshoots — overshoot lives in ghost-cursor's
+cursor logic, not its geometry. Recorded as absent so nobody later assumes it is there.
+
+**M4 is unjudgeable on this candidate.** `path()` returns points and no timings, so
+duration scaling is not its to provide. Point count rises only 39 to 46 across a 45x
+distance range, which is a property of the curve and not of a Fitts model.
+
+**human-mouse 0.1.2 is DISQUALIFIED, and the reason is the operator's machine.** It
+requires `pyautogui`, which moves the real OS cursor — the one the person is using. There
+is no second hardware pointer. Our shadow pointer exists precisely because CDP
+`Input.dispatchMouseEvent` injects into the page and never touches the OS cursor. A
+library that takes the physical mouse cannot be used here at any quality of motion.
+
+**python-ghost-cursor 0.1.1** last published 2021-08-11 and did not install cleanly
+(no package metadata after resolution). Not measured further.
+
+## Decision
+
+Adopt **ghost-cursor for path geometry**, per the fixed rule that a candidate winning M1
+is worth a dependency where ours fails it. It runs as one long-lived Node process speaking
+JSON lines — the same shape `kernel/session.py` already uses — never a subprocess per move.
+
+What it does not give stays ours and is named here so it is not assumed: **overshoot (M2),
+timing and its distance scaling (M4), and seeding (M6)**. Those are the caller's, and the
+landing point within the target (M3) always was.
+
+**The cost, stated plainly:** a Node runtime in the BROWSER machine's path. That is real
+operational weight for pure geometry, and it is accepted because the measurement above
+shows our geometry is wrong in a way that reasoning did not reveal.
