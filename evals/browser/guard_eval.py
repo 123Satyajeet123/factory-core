@@ -28,15 +28,19 @@ from factory.core.evidence import Delivery
 from factory.core.workflow import Target
 
 
-def picks(fragment: str):
+def picks(described: str):
     """A stand-in for the model rung.
 
-    Deliberately dumb: it matches on the candidate descriptions the driver offers, which is
-    the same input a model would get. It knows no selector and no id, so a rung that only
-    passes because this helper cheats would be visible.
+    Deliberately dumb: it matches the candidate descriptions the driver offers, which is the
+    same input a model would get. It knows no selector and no id, so a rung that only passed
+    because this helper cheats would be visible.
+
+    Matching a whole description rather than a fragment, because the accessibility tree
+    carries StaticText children -- `button 'target'` and `statictext 'target'` both contain
+    the name, and a substring match found two and refused.
     """
     def chooser(target: Target, among: dict[int, str]) -> int | None:
-        hits = [i for i, described in among.items() if fragment in described]
+        hits = [i for i, line in among.items() if line == described]
         return hits[0] if len(hits) == 1 else None
     return chooser
 
@@ -65,7 +69,7 @@ CASES = (
      "document.getElementById('veil').style.display='block';",
      Delivery.INTERCEPTED, False, "structural"),
     ("F3 label for hidden input", Target(role="checkbox", name="styled checkbox"),
-     picks("checkbox"), "", Delivery.TARGET_HIT, True, "chosen"),
+     None, "", Delivery.TARGET_HIT, True, "accessible"),
     ("F4 target off viewport", Target(role="button", name="target"), None,
      "document.getElementById('target').style.position='fixed';"
      "document.getElementById('target').style.top='-500px';",
@@ -79,7 +83,7 @@ CASES = (
     # L6: rung 0 refuses two matches rather than taking the first, and the chooser -- given
     # only the descriptions the driver offers -- settles it. This is also the only case in
     # the suite that is expected to actually press something.
-    ("L1 ambiguity, chooser settles", Target(role="button"), picks("'target'"),
+    ("L1 ambiguity, chooser settles", Target(role="button"), picks("button 'target'"),
      "", Delivery.TARGET_HIT, True, "chosen"),
 )
 

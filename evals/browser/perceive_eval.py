@@ -22,8 +22,8 @@ import tempfile
 import threading
 from pathlib import Path
 
-from factory.browser import bodies as bodies_mod
-from factory.browser import locate, profile, session
+from factory.browser import profile, session
+from factory.browser.machine import Machine
 
 HERE = Path(__file__).parent / "fixtures"
 PORT, CDP_PORT = 8099, 9334

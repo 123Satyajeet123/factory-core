@@ -1,12 +1,15 @@
 """Finding the demonstrated control on the page as it is now.
 
-Rung 0 only. It matches recorded evidence structurally and refuses when the answer is not
-unique; the descent to a model, to pixels, and finally to a question belongs to the caller,
-because deciding which candidate is the demonstrated one is not this machine's job.
+Rung 0 asks the accessibility tree for the recorded role and name and refuses unless the
+answer is unique. The descent to a model, to pixels, and finally to a question belongs to
+the caller: deciding which candidate is the demonstrated one is not this machine's job.
 
 REFUSING IS AN ANSWER. Acting on the wrong control is indistinguishable from working until
 something lands in the wrong field, so zero matches and two matches are both refusals and
-neither is a first-match.
+neither is a first match.
+
+Nothing here holds a session. It works on the nodes it is handed, so it can be exercised
+without a browser.
 """
 
 from __future__ import annotations
@@ -36,48 +39,33 @@ class Found(BaseModel):
         return self.backend_node_id is not None
 
 
-def described(node: Any) -> str:
-    """One line for a node, in the vocabulary a Target is recorded in."""
-    ax = getattr(node, "ax_node", None)
-    role = (getattr(ax, "role", None) or node.node_name or "").lower()
-    name = (getattr(ax, "name", None) or "").strip()
+def reads(node: dict[str, Any]) -> tuple[str, str, int | None]:
+    """One accessibility node, in the vocabulary a Target is recorded in."""
+    return ((node.get("role") or {}).get("value", "") or "",
+            (node.get("name") or {}).get("value", "") or "",
+            node.get("backendDOMNodeId"))
+
+
+def described(node: dict[str, Any]) -> str:
+    role, name, _ = reads(node)
     return f"{role} {name!r}" if name else role
 
 
-def _fields(node: Any) -> tuple[str, str, str]:
-    ax = getattr(node, "ax_node", None)
-    return ((getattr(ax, "role", None) or "").strip().lower(),
-            (getattr(ax, "name", None) or "").strip().lower(),
-            (node.node_name or "").strip().lower())
+def offered(nodes: list[dict[str, Any]]) -> dict[int, str]:
+    """The candidate set as a chooser sees it: one line each, keyed by position."""
+    return {index: described(node) for index, node in enumerate(nodes)
+            if not node.get("ignored")}
 
 
-def matching(nodes: dict[int, Any], target: Target) -> list[int]:
-    """Every candidate consistent with what was recorded. Empty fields do not constrain."""
-    want = (target.role.strip().lower(), target.name.strip().lower(),
-            target.tag.strip().lower())
-    hits = []
-    for index, node in nodes.items():
-        role, name, tag = _fields(node)
-        if want[0] and role != want[0]:
-            continue
-        if want[1] and name != want[1]:
-            continue
-        if want[2] and tag != want[2]:
-            continue
-        hits.append(index)
-    return hits
+def settle(hits: list[dict[str, Any]], target: Target,
+           among: dict[int, str], rung: str = "accessible") -> Found:
+    """One match is an answer. Nothing else is."""
+    live = [node for node in hits if not node.get("ignored")]
+    if len(live) == 1 and reads(live[0])[2]:
+        return Found(backend_node_id=reads(live[0])[2], rung=rung,
+                     why="one match", among=among)
 
-
-def among(nodes: dict[int, Any], target: Target) -> Found:
-    """Rung 0. One match is an answer; nothing else is."""
-    offered = {index: described(node) for index, node in nodes.items()}
-    hits = matching(nodes, target)
-
-    if len(hits) == 1:
-        return Found(backend_node_id=nodes[hits[0]].backend_node_id,
-                     rung="structural", why="one match", among=offered)
-
-    why = "no match" if not hits else f"{len(hits)} matches"
-    return Found(rung="structural", why=why, among=offered,
+    why = "no match" if not live else f"{len(live)} matches"
+    return Found(rung=rung, why=why, among=among,
                  question=Question(kind=Ask.TARGET, about=target.described(), because=why,
-                                   candidates=tuple(sorted(offered.values()))))
+                                   candidates=tuple(sorted(among.values()))))

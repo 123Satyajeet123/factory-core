@@ -1,8 +1,9 @@
-"""Refuse, then dispatch. Ours, beside hit.py.
+"""Refuse, then dispatch. Ours, and no vendor supplies it.
 
-Not a vendor extension. browser_use's default_action_watchdog.py:876 and :1815 both do
-`if is_occluded -> Runtime.callFunctionOn "function(){this.click();}"` -- detection whose
-consequence is dispatch anyway -- so clicks do not go through its ClickElementEvent.
+Playwright refuses a covered target by TIMEOUT, and a timeout is indistinguishable from a
+slow page -- one exception meaning three things. browser-use detects occlusion and then
+dispatches `this.click()` through it, which reads as safety in the log. So the decision to
+send lives here and returns a typed answer.
 
 REACH, THEN MEASURE, THEN PRESS, and that order is the point. Moving the pointer changes
 what is under it -- a hover menu is the ordinary case -- so a guard that measured before
@@ -25,34 +26,33 @@ _REFUSALS = {
 }
 
 
-async def press(cdp: Any, session_id: str, backend_node_id: int, *,
-                hand: Hand | None = None, button: str = "left") -> Landed:
+async def press(cdp: Any, backend_node_id: int, *, hand: Hand | None = None,
+                button: str = "left") -> Landed:
     """Travel to the target, re-measure there, and send nothing if the answer is no.
 
-    Where in the target to land is the hand's to choose. A constant centre was the default
-    and is a tell on its own: two clicks on the same control land on the same pixel.
+    Where in the target to land is the hand's to choose. A constant centre is a tell on its
+    own: two presses on one control land on the same pixel.
     """
     hand = hand or Hand()
     fx, fy = hand.aim()
 
-    resolved = await cdp.send.DOM.resolveNode(
-        params={"backendNodeId": backend_node_id}, session_id=session_id)
+    resolved = await cdp.send("DOM.resolveNode", {"backendNodeId": backend_node_id})
     object_id = resolved.get("object", {}).get("objectId")
     if not object_id:
         return Landed(dispatched=False, delivery=Delivery.OFF_TARGET, why="unresolvable")
 
-    point = await where(cdp, session_id, object_id, fx, fy)
+    point = await where(cdp, object_id, fx, fy)
     if point is None:
         return Landed(dispatched=False, delivery=Delivery.OFF_TARGET, why="no box")
 
-    moves = await hand.reach(cdp, session_id, point)
+    moves = await hand.reach(cdp, point)
 
-    seen = await at_point(cdp, session_id, object_id, *point)
+    seen = await at_point(cdp, object_id, *point)
     if not seen.get("hit"):
         reason = seen.get("reason", "covered")
         return Landed(dispatched=False, delivery=_REFUSALS.get(reason, Delivery.INTERCEPTED),
                       why=f"{reason} {seen.get('tag', '')}".strip(), at=point, moves=moves)
 
-    await hand.press_at(cdp, session_id, point, button)
+    await hand.press_at(cdp, point, button)
     return Landed(dispatched=True, delivery=Delivery.TARGET_HIT,
                   why=seen["reason"], at=point, moves=moves)

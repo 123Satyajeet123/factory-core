@@ -85,34 +85,34 @@ class Hand(BaseModel):
         over = self.dice.uniform(0.04, 0.12)
         return (x1 + (x1 - x0) * over, y1 + (y1 - y0) * over) if distance else to
 
-    async def _glide(self, cdp: Any, session_id: str, to: tuple[float, float]) -> int:
+    async def _glide(self, cdp: Any, to: tuple[float, float]) -> int:
         points = await motion.between_async(self.at, to)
         seconds = self.travel_time(math.dist(self.at, to)) / max(len(points), 1)
         for x, y in points:
-            await cdp.send.Input.dispatchMouseEvent(
-                params={"type": "mouseMoved", "x": x, "y": y}, session_id=session_id)
+            await cdp.send("Input.dispatchMouseEvent",
+                           {"type": "mouseMoved", "x": x, "y": y})
             await asyncio.sleep(self.draw((seconds * 0.6, seconds * 1.4)))
         self.at = to
         return len(points)
 
-    async def reach(self, cdp: Any, session_id: str, to: tuple[float, float]) -> int:
+    async def reach(self, cdp: Any, to: tuple[float, float]) -> int:
         """Travel there, sometimes past it first. Returns how many moves were sent."""
         distance = math.dist(self.at, to)
         moves = 0
         if self._overshoots(distance):
-            moves += await self._glide(cdp, session_id, self._past(to, distance))
-        moves += await self._glide(cdp, session_id, to)
+            moves += await self._glide(cdp, self._past(to, distance))
+        moves += await self._glide(cdp, to)
         await asyncio.sleep(self.draw(self.pace.dwell))
         return moves
 
-    async def press_at(self, cdp: Any, session_id: str, to: tuple[float, float],
+    async def press_at(self, cdp: Any, to: tuple[float, float],
                        button: str = "left") -> None:
         """Press where the pointer already is. Travel first; this does not move."""
         x, y = to
         for kind in ("mousePressed", "mouseReleased"):
-            await cdp.send.Input.dispatchMouseEvent(
-                params={"type": kind, "x": x, "y": y, "button": button, "clickCount": 1},
-                session_id=session_id)
+            await cdp.send("Input.dispatchMouseEvent",
+                           {"type": kind, "x": x, "y": y,
+                            "button": button, "clickCount": 1})
             if kind == "mousePressed":
                 await asyncio.sleep(self.draw(self.pace.press))
 

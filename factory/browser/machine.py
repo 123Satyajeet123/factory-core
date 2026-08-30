@@ -1,16 +1,19 @@
 """The BROWSER machine: what the harness and the factory are handed.
 
 THE ONLY THING IN THIS TREE THAT TOUCHES CDP. Everything above it asks for acts by role and
-name and receives typed evidence; nothing above it knows a protocol, a session id or a node.
+name and receives typed evidence; nothing above it knows a protocol, a session or a node.
 
 Every act travels and every act is checked, by construction rather than by remembering to:
 a press goes through the hand and the guard, and what the page fetched for itself is
 collected the whole time.
+
+Playwright supplies attach, transport, page lifecycle and bodies. It does not supply
+resolution -- `Accessibility.queryAXTree` returns the node id the guard needs, where a
+locator returns a handle -- and it does not supply acts.
 """
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from factory.browser import bodies as bodies_mod
@@ -25,57 +28,36 @@ from factory.core.workflow import Target
 class Machine:
     """One attached browser, driven."""
 
-    def __init__(self, live: Any, cdp: Any, hand: Hand) -> None:
-        self._live = live
-        self._cdp = cdp
+    def __init__(self, attached: session.Attached, hand: Hand) -> None:
+        self._at = attached
         self.hand = hand
         self.bodies = bodies_mod.Bodies()
 
     @classmethod
     async def attach(cls, cdp_url: str, *, seed: int | None = None) -> Machine:
-        live = await session.attach(cdp_url)
-        cdp = await live.get_or_create_cdp_session()
-        machine = cls(live, cdp, Hand(seed=seed))
-        await cdp.cdp_client.send.Network.enable(session_id=cdp.session_id)
-        machine.bodies.watch(cdp.cdp_client)
+        attached = await session.attach(cdp_url)
+        machine = cls(attached, Hand(seed=seed))
+        await attached.cdp.send("Network.enable", {})
+        machine.bodies.watch(attached.cdp)
         return machine
 
     @property
-    def _client(self) -> Any:
-        return self._cdp.cdp_client
+    def cdp(self) -> Any:
+        return self._at.cdp
 
-    @property
-    def _session(self) -> str:
-        return self._cdp.session_id
+    async def _document(self) -> int:
+        """The current document's node id. Asked every time: ids do not survive a navigation."""
+        got = await self.cdp.send("DOM.getDocument", {"depth": -1})
+        return got["root"]["nodeId"]
 
-    async def see(self) -> dict[int, Any]:
-        """The candidate set: everything on the page that has somewhere to be pressed.
+    async def see(self) -> list[dict[str, Any]]:
+        """The candidate set: every accessibility node the page is offering.
 
-        NOT the vendor's `selector_map`. That is its answer to "what should a model be
-        shown", which is a different question from "what can be acted on" -- measured on
-        one page, it offered four candidates and omitted a checkbox carrying the exact role
-        and name being searched for, because the input is painted at `opacity:0` and its
-        `is_visible` is false. The platform's own tree had it, with a box.
-
-        So the filter here is geometric and nothing else: a thing with a box is a thing the
-        guard can hit-test, and a thing with no box cannot be pressed by anyone.
-
-        Fetching candidates is the driver's job and matching them is `locate`'s, so locate
-        holds no session and can be exercised without a browser.
+        Measured at 1.8 ms, against 10 ms for an agent framework's own serialisation which
+        also omitted a control carrying the exact role and name being searched for.
         """
-        from browser_use.dom.service import DomService
-
-        tree, _timings = await DomService(self._live).get_dom_tree(self._cdp.target_id)
-        offered: dict[int, Any] = {}
-        stack = [tree]
-        while stack:
-            node = stack.pop()
-            if node is None:
-                continue
-            stack.extend(getattr(node, "children_nodes", None) or [])
-            if node.absolute_position and node.backend_node_id:
-                offered[len(offered)] = node
-        return offered
+        got = await self.cdp.send("Accessibility.getFullAXTree", {})
+        return [node for node in got.get("nodes", []) if not node.get("ignored")]
 
     async def find(self, target: Target, chooser: Chooses | None = None) -> locate.Found:
         """Rung 0, then the chooser, then a question. Descends only on a miss.
@@ -83,36 +65,39 @@ class Machine:
         The chooser is the model, and it is optional: with none supplied the driver still
         works and still says why it could not proceed, rather than pretending it can.
         """
-        nodes = await self.see()
-        found = locate.among(nodes, target)
+        asked: dict[str, Any] = {"nodeId": await self._document()}
+        if target.role:
+            asked["role"] = target.role
+        if target.name:
+            asked["accessibleName"] = target.name
+        hits = (await self.cdp.send("Accessibility.queryAXTree", asked)).get("nodes", [])
+
+        every = await self.see()
+        offered = locate.offered(every)
+        found = locate.settle(hits, target, offered)
         if found or chooser is None:
             return found
 
-        picked = chooser(target, found.among)
-        if picked is None or picked not in nodes:
+        picked = chooser(target, offered)
+        if picked is None or not (0 <= picked < len(every)):
             return found
-        return locate.Found(backend_node_id=nodes[picked].backend_node_id,
-                            rung="chosen", why=f"chose {found.among[picked]}",
-                            among=found.among)
+        chosen = locate.reads(every[picked])[2]
+        if chosen is None:
+            return found
+        return locate.Found(backend_node_id=chosen, rung="chosen",
+                            why=f"chose {offered[picked]}", among=offered)
 
-    async def go(self, url: str, *, settle: float = 15.0) -> Did:
-        """Navigation, checked rather than assumed, and waited for rather than hoped.
+    async def go(self, url: str) -> Did:
+        """Navigation, waited for and checked rather than assumed.
 
         A navigation returns without raising when a server redirects to a login or an error
         page, so a step that only asks whether the call threw reports arriving somewhere it
-        never went. `Page.navigate` is also acked before the document exists -- measured:
-        the very next call saw zero elements on a page with eleven.
+        never went.
         """
-        await self._client.send.Page.navigate(
-            params={"url": url}, session_id=self._session)
-        deadline = asyncio.get_running_loop().time() + settle
-        while asyncio.get_running_loop().time() < deadline:
-            if await self.evaluate("document.readyState") == "complete":
-                break
-            await asyncio.sleep(0.05)
-        landed = await self.evaluate("location.href") or ""
-        arrived = str(landed).split("#")[0].rstrip("/") == url.split("#")[0].rstrip("/")
-        return Did(ok=arrived, value=str(landed),
+        await self._at.page.goto(url, wait_until="load")
+        landed = str(await self.evaluate("location.href") or "")
+        arrived = landed.split("#")[0].rstrip("/") == url.split("#")[0].rstrip("/")
+        return Did(ok=arrived, value=landed,
                    detail=f"go {url}" if arrived else f"asked for {url}, tab is at {landed}")
 
     async def press(self, found: locate.Found) -> Did:
@@ -123,12 +108,9 @@ class Machine:
         """
         if not found:
             return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why)
-
-        landed = await press_guarded(self._client, self._session, found.backend_node_id,
-                                     hand=self.hand)
+        landed = await press_guarded(self.cdp, found.backend_node_id, hand=self.hand)
         await self.hand.rest()
-        return Did(ok=landed.dispatched, delivery=landed.delivery,
-                   value=str(landed.moves),
+        return Did(ok=landed.dispatched, delivery=landed.delivery, value=str(landed.moves),
                    detail=f"pressed via {found.rung}" if landed.dispatched
                           else f"refused: {landed.why}")
 
@@ -139,24 +121,18 @@ class Machine:
     async def type(self, text: str) -> Did:
         """Key by key, into whatever holds focus, the way a keyboard delivers it."""
         for character in text:
-            for kind in ("keyDown", "keyUp"):
-                await self._client.send.Input.dispatchKeyEvent(
-                    params={"type": "char" if kind == "keyDown" else kind,
-                            "text": character},
-                    session_id=self._session)
+            await self.cdp.send("Input.dispatchKeyEvent",
+                                {"type": "char", "text": character})
             await self.hand.rest_key()
         return Did(ok=True, value=text, detail=f"typed {len(text)} characters")
 
     async def evaluate(self, expression: str) -> Any:
         """Reading the page. Never a way to act on it -- acts go through the guard."""
-        got = await self._client.send.Runtime.evaluate(
-            params={"expression": expression, "returnByValue": True},
-            session_id=self._session)
-        return got["result"].get("value")
+        return await self._at.page.evaluate(expression)
 
     async def fetched(self) -> list[Exchange]:
         """What the page fetched for itself since the last time this was asked."""
-        return await self.bodies.drain(self._client, self._session)
+        return await self.bodies.drain(self.cdp)
 
     async def close(self) -> None:
-        await self._live.stop()
+        await self._at.close()
