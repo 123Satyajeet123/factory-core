@@ -49,13 +49,33 @@ class Machine:
         return self._cdp.session_id
 
     async def see(self) -> dict[int, Any]:
-        """The candidate set: every interactive element the vendor could serialise.
+        """The candidate set: everything on the page that has somewhere to be pressed.
+
+        NOT the vendor's `selector_map`. That is its answer to "what should a model be
+        shown", which is a different question from "what can be acted on" -- measured on
+        one page, it offered four candidates and omitted a checkbox carrying the exact role
+        and name being searched for, because the input is painted at `opacity:0` and its
+        `is_visible` is false. The platform's own tree had it, with a box.
+
+        So the filter here is geometric and nothing else: a thing with a box is a thing the
+        guard can hit-test, and a thing with no box cannot be pressed by anyone.
 
         Fetching candidates is the driver's job and matching them is `locate`'s, so locate
         holds no session and can be exercised without a browser.
         """
-        state = await self._live.get_browser_state_summary(include_screenshot=False)
-        return dict(state.dom_state.selector_map)
+        from browser_use.dom.service import DomService
+
+        tree, _timings = await DomService(self._live).get_dom_tree(self._cdp.target_id)
+        offered: dict[int, Any] = {}
+        stack = [tree]
+        while stack:
+            node = stack.pop()
+            if node is None:
+                continue
+            stack.extend(getattr(node, "children_nodes", None) or [])
+            if node.absolute_position and node.backend_node_id:
+                offered[len(offered)] = node
+        return offered
 
     async def find(self, target: Target, chooser: Chooses | None = None) -> locate.Found:
         """Rung 0, then the chooser, then a question. Descends only on a miss.
