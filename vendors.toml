@@ -6,20 +6,25 @@
 #       project, and a gate that inspects only imports cannot see the other three.
 #       import | spawn | format | read
 
+# browser-use was the BROWSER spine until 2026-08-30 and is now tier 4. It was not found
+# wanting on speed -- `get_dom_tree` measured 3ms and passes completeness. It loses on the
+# common path (Playwright resolves role+name in 1ms with no tree fetch) and on weight (36
+# runtime deps against 2, including three model clients this machine never calls).
+# Kept as a read: its occlusion handling is the reference anti-pattern the guard exists for.
 [[vendor]]
 name    = "browser-use"
 # TIER 2, NOT 3. Checked at the rev below: its pyproject says `openai>=2.26.0`, a
 # floor, so the pin patch this carried was unnecessary. None of our three additions
 # modifies it -- bodies subclasses BaseWatchdog, guard is a choice not to use
 # ClickElementEvent, witness sits above the actuator. There is no patch series.
-tier    = 2
-use     = "import"
+tier    = 4
+use     = "read"
 url     = "https://github.com/browser-use/browser-use.git"
 rev     = "b4bad86d21bf693b9ae5748b667fc32fc8b8e7d5"
 path    = "candidates/browser-use"
 license = "MIT"
-imports = "browser_use"
-why     = "the BROWSER actuator. We use its session, CDP client and DOM serialisation; we extend via BaseWatchdog and dispatch clicks ourselves"
+imports = ""
+why     = "read only. The reference anti-pattern for B4a: it detects occlusion, logs it, then dispatches this.click() straight through"
 
 [[vendor]]
 name    = "prime-agent"

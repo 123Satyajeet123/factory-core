@@ -81,6 +81,56 @@ per-op speed, and this gate will have cost one measurement to confirm the incumb
   and bodies; it does not get to supply actuation.
 - If the incumbent wins, say so plainly and record that the gate cost a measurement.
 
-## Result
+## Result — 2026-08-30, by execution, same page and same browser
 
-(filled in by execution — not by reasoning)
+| | rung 0, direct | candidate set | has the opacity:0 checkbox |
+|---|---|---|---|
+| browser-use `selector_map` | — | **10 ms**, 4 candidates | **no** |
+| browser-use `get_dom_tree` | — | **3 ms**, 26 nodes | yes |
+| playwright `get_by_role` | **1 ms**, count=1 | — | yes |
+| playwright `aria_snapshot` | — | **2 ms**, 7 lines | yes |
+| playwright `locator('*')` | — | 1 ms, 17 elements | raw |
+
+    S5  ctx.new_cdp_session(page) -> CDPSession        ok
+        DOM.getDocument / querySelector / describeNode  backendNodeId 17
+        DOM.resolveNode -> objectId                     ok
+        Input.dispatchMouseEvent                        ok, 4 ms
+    S6  Network.enable on the same session              ok
+    S7  browser-use 36 runtime deps  (anthropic, google-genai, google-api-python-client,
+                                      browser-use-sdk, cdp-use, bubus, posthog, ...)
+        playwright   2 runtime deps  (greenlet, pyee)
+
+**MY BLIND PREDICTION WAS WRONG, and how it was wrong is the more useful part.** I predicted
+`get_dom_tree` would be an order of magnitude slower, on the evidence that a run using it
+produced no output in ten minutes. It is **3 ms — faster than `selector_map`**. The stall
+was a bug in my eval, and I had already written it into this gate as a vendor cost. Had the
+gate been decided on the prediction it would have reached the right answer for a false
+reason, which is worth less than a wrong answer honestly obtained.
+
+**Decision: Playwright.** Not on the prediction, and not on browser-use being slow, because
+it is not. On three things that were measured:
+
+- **S3 on the common path.** Playwright resolves role and name in 1 ms with **no candidate
+  fetch at all**. browser-use must build a tree every time just to match. Rung 0 is the path
+  every step of every row takes.
+- **S7.** Two runtime dependencies against thirty-six. browser-use brings `anthropic`,
+  `google-genai`, `google-api-python-client`, an SDK and telemetry into a machine that
+  never calls a model.
+- **The independent bake-off.** `~/Projects/stealth/factory/BROWSER.md` measured browser-use
+  failing role-and-name addressing and the painted label across five candidates. Its B4b is
+  the same wall this tree hit from a different direction. Two measurements, one conclusion.
+
+**browser-use is not disqualified and this is not a criticism of it.** `get_dom_tree`
+passes S2 and S3. It is an agent framework being asked for a job it was not built for, and
+the job is smaller than the framework.
+
+**A consequence worth stating: the BROWSER machine becomes tier 1.** With browser-use the
+one seam file was `bodies.py`, subclassing `BaseWatchdog`. Playwright needs no extension
+point for any of it — attach, resolve, CDP, bodies are all plain documented API. The tree
+now has **no vendor seam at all**, which is the shallowest tier that works, and the rule
+says to take it.
+
+**What does not change.** Actuation stays ours: Playwright refuses a covered target by
+timeout, and a timeout is indistinguishable from a slow page. We keep hit-testing in the
+page, dispatching over raw CDP, pacing with our own hand, and judging with our own witness.
+Playwright supplies attach, resolution, candidates and bodies. It does not supply acts.
