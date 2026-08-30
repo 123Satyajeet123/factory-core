@@ -134,3 +134,33 @@ says to take it.
 timeout, and a timeout is indistinguishable from a slow page. We keep hit-testing in the
 page, dispatching over raw CDP, pacing with our own hand, and judging with our own witness.
 Playwright supplies attach, resolution, candidates and bodies. It does not supply acts.
+
+## Amendment — same day, and the reason moves a second time
+
+Measured after the decision, before the migration:
+
+    Accessibility.queryAXTree  checkbox 'styled checkbox'  -> 1 node, backendId 17,  8.0 ms
+                               button   'target'           -> 1 node, backendId 15,  8.3 ms
+                               checkbox 'boxless checkbox' -> 0 nodes,               8.4 ms
+                               role=button, no name        -> 2 nodes (ambiguity visible)
+    Accessibility.getFullAXTree (candidate set)            -> 13 nodes,              1.8 ms
+
+**Raw CDP resolves role and name, and returns the `backendDOMNodeId` the guard needs.**
+Playwright's `get_by_role` is faster at 1 ms and returns a handle, not a node id. Bridging a
+handle to a node id means marking the element — a DOM mutation a `MutationObserver` sees —
+which costs the one claim this machine's stealth rests on. A round trip to avoid that is
+cheap; a mutation is not.
+
+**So the S3 plank of the decision above is withdrawn.** Rung 0 is not 1 ms via a locator; it
+is 8 ms via `queryAXTree`, and that is the honest number. This is the second time a
+measurement has moved the reason for this choice, and the choice has survived both — but it
+would not have survived being decided on the first reason without the second measurement.
+
+**What the vendor is actually for, stated after measuring rather than before:** attach, a
+maintained CDP transport, page and context lifecycle, and response bodies. Not resolution.
+Playwright is the cheapest thing that supplies those — two runtime dependencies — and
+writing a websocket CDP client with reconnection and multiplexing to avoid it would be
+hand-rolling a transport.
+
+**Ambiguity comes free.** `queryAXTree` with a role and no name returns both buttons, so
+rung 0's refusal on two-plus is the platform's answer rather than our arithmetic.

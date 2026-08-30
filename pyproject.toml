@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 description = "Turns a demonstrated browser workflow into work that proves itself."
 # Versions are resolved and pinned by uv.lock. Anything imported is declared here.
 dependencies = [
-    "browser-use",
+    "playwright",         # BROWSER: attach, role+name resolution, raw CDP, bodies
     "mcp",
     "litellm",
     "instructor",
