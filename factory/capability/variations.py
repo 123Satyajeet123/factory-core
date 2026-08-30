@@ -1,0 +1,1 @@
+"""Varied inputs, in parallel."""

@@ -1,0 +1,1 @@
+"""Pointer travel and pacing."""

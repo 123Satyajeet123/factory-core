@@ -1,0 +1,41 @@
+[project]
+name = "factory"
+version = "0.1.0"
+requires-python = ">=3.12"
+description = "Turns a demonstrated browser workflow into work that proves itself."
+# Versions are resolved and pinned by uv.lock. Anything imported is declared here.
+dependencies = [
+    "browser-use",
+    "mcp",
+    "litellm",
+    "instructor",
+    "openadapt-flow",
+    "apscheduler",
+    "pydantic",
+    "structlog",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
+]
+
+[project.scripts]
+factory = "factory.main:main"
+
+[dependency-groups]
+dev = ["ruff", "pytest"]
+evals = ["inspect-ai"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+# Real directories. A testpaths naming a directory with no tests exits 5 and reads
+# as silence rather than as a red suite.
+testpaths = ["factory", "evals"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

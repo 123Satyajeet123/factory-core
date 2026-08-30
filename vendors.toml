@@ -1,0 +1,41 @@
+# Source-vendored projects. The only place a revision is written down.
+# PyPI dependencies live in pyproject.toml; uv.lock pins them.
+#
+# tier  1 depend · 2 extend · 3 patch · 4 read
+# use   how the code reaches us. An import is not the only way to depend on a
+#       project, and a gate that inspects only imports cannot see the other three.
+#       import | spawn | format | read
+
+[[vendor]]
+name    = "browser-use"
+tier    = 3
+use     = "import"
+url     = "https://github.com/browser-use/browser-use.git"
+rev     = "b4bad86d21bf693b9ae5748b667fc32fc8b8e7d5"
+path    = "candidates/browser-use"
+license = "MIT"
+imports = "browser_use"
+patch   = "candidates/browser-use-openai-pin.patch"
+why     = "the BROWSER actuator; three patches ride its own extension points"
+
+[[vendor]]
+name    = "prime-agent"
+tier    = 2
+use     = "spawn,format"
+url     = "https://github.com/PrimeIntellect-ai/prime-agent"
+rev     = "d60fab8a76d9c169f945341f0ee3bde21903bb55"
+path    = "candidates/prime-agent"
+license = "MIT"
+imports = ""
+why     = "rlm.repl is the KERNEL in its own venv; rlm.mcp calls browser/serve.py; its skill format is what capability/publish.py writes"
+
+[[vendor]]
+name    = "openadapt-flow"
+tier    = 1
+use     = "import"
+url     = "https://github.com/OpenAdaptAI/openadapt-flow.git"
+rev     = "faf2bd16125e1dac7559d5a3c3f190b6edd8267a"
+path    = "candidates/openadapt-flow"
+license = "MIT"
+imports = "openadapt_flow"
+why     = "induce_program and effect mining. Tier 1, not 3: three modules imported, none patched"

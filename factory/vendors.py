@@ -1,0 +1,1 @@
+"""Executes vendors.toml."""
