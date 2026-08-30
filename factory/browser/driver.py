@@ -117,7 +117,12 @@ class Browser:
             return Did(ok=False, delivery=Delivery.NOT_PROBED, detail=found.why)
         landed = await press_guarded(self.cdp, found.backend_node_id, hand=self.hand)
         await self.hand.rest()
+        #: WHAT THE PAGE FETCHED BECAUSE OF THIS ACT TRAVELS WITH IT. Without this every
+        #: `Did` reaches the witness with no evidence and every verdict is UNVERIFIABLE --
+        #: measured, on a run whose writes all landed.
+        settled = await self.fetched()
         return Did(ok=landed.dispatched, delivery=landed.delivery, value=str(landed.moves),
+                   exchanges=settled,
                    detail=f"pressed via {found.rung}" if landed.dispatched
                           else f"refused: {landed.why}")
 
@@ -134,11 +139,31 @@ class Browser:
         what a behavioural detector looks for.
         """
         for character in text:
-            for kind in ("keyDown", "char", "keyUp"):
-                await self.cdp.send("Input.dispatchKeyEvent",
-                                    {"type": kind, "text": character, "key": character})
+            #: ONLY ONE OF THESE MAY CARRY THE TEXT. `keyDown` with `text` inserts the
+            #: character, and so does `char` -- sending both typed everything twice, and
+            #: the destination received 'GGrraaccee'. `keyDown` and `keyUp` are what a
+            #: detector watches for; `char` is what actually writes.
+            await self.cdp.send("Input.dispatchKeyEvent",
+                                {"type": "keyDown", "key": character})
+            await self.cdp.send("Input.dispatchKeyEvent",
+                                {"type": "char", "text": character})
+            await self.cdp.send("Input.dispatchKeyEvent",
+                                {"type": "keyUp", "key": character})
             await self.hand.rest_key()
-        return Did(ok=True, value=text, detail=f"typed {len(text)} characters")
+        return Did(ok=True, value=text, exchanges=await self.fetched(),
+                   detail=f"typed {len(text)} characters")
+
+    async def clear(self) -> None:
+        """Select what is in the focused control, so the next thing typed replaces it.
+
+        A replay writes into a field a previous row already filled. Without this the values
+        accumulate -- measured: the second row received the first row's name with its own
+        spliced into the middle.
+        """
+        for kind in ("keyDown", "keyUp"):
+            await self.cdp.send("Input.dispatchKeyEvent",
+                                {"type": kind, "key": "a", "code": "KeyA",
+                                 "modifiers": 8, "commands": ["selectAll"]})
 
     async def evaluate(self, expression: str) -> Any:
         """Reading the page. Never a way to act on it -- acts go through the guard."""

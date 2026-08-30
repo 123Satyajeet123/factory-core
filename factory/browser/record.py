@@ -59,15 +59,34 @@ REPORT = """
   if (window.__factory_acts) return;
   window.__factory_acts = true;
   const say = (act) => { try { __factory_act(JSON.stringify(act)); } catch (e) {} };
-  addEventListener('mousedown', e => say(
-    { doing: 'press', x: e.clientX, y: e.clientY }), true);
-  addEventListener('change', e => {
+
+  // ONE WRITE PER FIELD, CARRYING WHAT IT ENDED UP HOLDING, and emitted before whatever
+  // act ends it. `change` was tried first and fires on BLUR, so the write landed after the
+  // press that moved focus away: the ledger held press, press, write for someone who typed
+  // before saving, and the induced program pressed Save on an empty field. Measured.
+  let writing = null;
+  const flush = () => { if (writing) { say(writing.act); writing = null; } };
+
+  addEventListener('input', e => {
     const r = e.target && e.target.getBoundingClientRect
       ? e.target.getBoundingClientRect() : null;
-    if (r && 'value' in e.target) say(
-      { doing: 'write', x: r.left + r.width / 2, y: r.top + r.height / 2,
-        value: String(e.target.value) });
+    if (!r || !('value' in e.target)) return;
+    if (writing && writing.on === e.target) {
+      writing.act.value = String(e.target.value);
+      return;
+    }
+    flush();
+    writing = { on: e.target, act: {
+      doing: 'write', x: r.left + r.width / 2, y: r.top + r.height / 2,
+      value: String(e.target.value) } };
   }, true);
+
+  addEventListener('mousedown', e => {
+    flush();
+    say({ doing: 'press', x: e.clientX, y: e.clientY });
+  }, true);
+
+  addEventListener('blur', flush, true);
 })();
 """
 

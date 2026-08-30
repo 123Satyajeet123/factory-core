@@ -17,15 +17,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from factory.core.verbs import Doing
 from factory.core.workflow import Target
-
-
-class Doing(StrEnum):
-    """What kind of thing was done. The vocabulary a browser can be told, and no more."""
-
-    PRESS = "press"
-    WRITE = "write"
-    GO = "go"
 
 
 class Act(BaseModel):
@@ -42,6 +35,11 @@ class Act(BaseModel):
     at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     #: Where the act landed, so a later reader can ask the page about the same point.
     where: tuple[float, float] | None = None
+    #: The control's box when it was acted on. Observed, and never used to aim -- aiming by
+    #: a recorded coordinate is what `browser/locate.py` exists to avoid. It is here because
+    #: a compiler that consumes desktop recordings asks for a region, and an honest answer
+    #: beats a fabricated one.
+    box: tuple[float, float, float, float] | None = None
 
 
 class Whose(StrEnum):

@@ -6,6 +6,9 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from factory.core.contract import Receipt
+from factory.core.question import Question
+
 
 class Delivery(StrEnum):
     """How an act reached the page, or why it did not.
@@ -67,3 +70,37 @@ class Exchange(BaseModel):
 
 
 Did.model_rebuild()
+
+
+class StepRun(BaseModel):
+    """One step, on one row: what was attempted, what happened, what was said of it."""
+
+    intent: str = ""
+    did: Did
+    receipt: Receipt | None = None
+
+
+class RowRun(BaseModel):
+    """One row, and where it stopped if it did.
+
+    A row that could not start is not a row that failed: `refused` carries the question,
+    and a question is answerable where a failure is only countable.
+    """
+
+    row: dict[str, str] = Field(default_factory=dict)
+    steps: list[StepRun] = Field(default_factory=list)
+    refused: Question | None = None
+
+    @property
+    def ran(self) -> bool:
+        return self.refused is None
+
+
+class Run(BaseModel):
+    """One workflow over its rows."""
+
+    workflow: str = ""
+    rows: list[RowRun] = Field(default_factory=list)
+
+    def receipts(self) -> list[Receipt]:
+        return [s.receipt for r in self.rows for s in r.steps if s.receipt]

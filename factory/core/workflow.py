@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from collections.abc import Mapping
+
+from pydantic import BaseModel, Field
+
+from factory.core.contract import Contract
+from factory.core.verbs import Doing
 
 
 class Target(BaseModel):
@@ -24,3 +29,39 @@ class Target(BaseModel):
         parts = [p for p in (self.role, repr(self.name) if self.name else "",
                              repr(self.text) if self.text else "") if p]
         return " ".join(parts) or self.tag or "an unnamed control"
+
+
+class Step(BaseModel):
+    """One thing to do, once per row.
+
+    `param` names what varies between rows and `value` is what does not. Exactly one of
+    them carries a write: a step holding both is a step nobody decided about, and the
+    compiler refuses rather than picking.
+    """
+
+    doing: Doing
+    intent: str = ""
+    target: Target | None = None
+    value: str = ""
+    param: str = ""
+    contract: Contract | None = None
+
+    def wants(self, row: Mapping[str, str]) -> str:
+        """What to write for this row."""
+        return row.get(self.param, "") if self.param else self.value
+
+
+class Workflow(BaseModel):
+    """A body, and the parameters its rows must supply.
+
+    Induced from several demonstrations, never written. `params` is what the compiler found
+    varying; a row missing one of them is a row this workflow cannot run, which is a
+    question rather than a guess.
+    """
+
+    name: str
+    steps: list[Step] = Field(default_factory=list)
+    params: tuple[str, ...] = ()
+
+    def missing_from(self, row: Mapping[str, str]) -> tuple[str, ...]:
+        return tuple(p for p in self.params if p not in row)

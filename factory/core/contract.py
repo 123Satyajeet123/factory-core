@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from enum import StrEnum
 
@@ -39,6 +40,23 @@ class Contract(BaseModel):
     #: difference is in what was bound, not in what was read. Naming the field here keeps
     #: the weaker confirmation visible instead of letting one word mean both.
     identifies: str = ""
+    #: field -> the parameter whose value belongs there, for a step that varies by row.
+    #:
+    #: A CONTRACT DERIVED FROM ONE DEMONSTRATION BINDS THAT DEMONSTRATION'S VALUE. Left
+    #: alone it confirms every later row against the demonstrated record: measured, two
+    #: rows writing other names came back CONFIRMED against `name = 'Grace Hopper'`, which
+    #: was true and had nothing to do with either of them.
+    varies: dict[str, str] = Field(default_factory=dict)
+
+    def for_row(self, row: Mapping[str, str]) -> Contract:
+        """This contract, bound to what THIS row was supposed to write."""
+        if not self.varies:
+            return self
+        expects = dict(self.expects)
+        for field, param in self.varies.items():
+            if param in row:
+                expects[field] = row[param]
+        return self.model_copy(update={"expects": expects})
 
 
 class Reading(BaseModel):
