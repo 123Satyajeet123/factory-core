@@ -55,6 +55,18 @@ knows no workflow and no site.
 `compile/`, `run/`, `orchestrate/` and `authority/` are the line those sit on.
 `core/` holds types and protocols and imports no machine.
 
+## How things get built
+
+Nothing here is hand-rolled that has a supplier. In order: use what the vendor exposes,
+then the standard library, then write it — and only what has no supplier at all. A
+reimplementation of a vendor capability is a defect, not a preference.
+
+Where we deliberately do not use a vendor call, the file says which call and why —
+`browser/guard.py` is the pattern.
+
+Standard tooling throughout: pydantic for types, ruff, pytest, structlog, OTLP. No bespoke
+framework, and no abstraction with one implementation.
+
 ## Loop
 
     ledger → compile → workflow → run → receipt → memory → compile
